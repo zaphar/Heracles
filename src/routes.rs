@@ -11,10 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::sync::Arc;
+
 use maud::{html, Markup};
-use axum::Router;
+use axum::{extract::State, Router};
+
+use crate::dashboard::Dashboard;
+
+type Config = State<Arc<Vec<Dashboard>>>;
 
 pub fn mk_api_routes() -> Router {
+    // Query routes
     Router::new()
 }
 
@@ -22,15 +29,26 @@ pub fn mk_ui_routes() -> Router {
     Router::new()
 }
 
-pub async fn index() -> Markup {
+pub async fn index(State(config): Config) -> Markup {
     html! {
         html {
             head {
                 title { ("Heracles - Prometheus Unshackled") }
             }
             body {
-                ("hello world")
+                (app(State(config.clone())).await)
             }
+        }
+    }
+}
+
+pub async fn app(State(config): Config) -> Markup {
+    html! {
+        div {
+            // Header menu
+            div { }
+            // dashboard display
+            div { }
         }
     }
 }

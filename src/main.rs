@@ -11,15 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::io;
 use std::net::TcpListener;
+use std::path::PathBuf;
 use std::sync::Arc;
 
+use anyhow;
 use async_io::Async;
 use axum::{self, routing::*, Router};
 use clap::{self, Parser};
 use smol_macros::main;
 
+mod dashboard;
+mod query;
 mod routes;
 
 #[derive(clap::Parser)]
@@ -27,20 +30,25 @@ mod routes;
 struct Cli {
     #[arg(long)]
     listen: Option<std::net::SocketAddr>,
+    #[arg(long)]
+    config: PathBuf,
 }
 
 main! {
-    async fn main(ex: &Arc<smol_macros::Executor<'_>>) -> io::Result<()> {
+    async fn main(ex: &Arc<smol_macros::Executor<'_>>) -> anyhow::Result<()> {
         let args = Cli::parse();
+        let config = std::sync::Arc::new(dashboard::read_dashboard_list(args.config.as_path())?);
         let router = Router::new()
+            .with_state(config)
             // JSON api endpoints
             .nest("/api", routes::mk_api_routes())
             // HTMX ui component endpoints
             .nest("/ui", routes::mk_ui_routes())
             .route("/", get(routes::index));
-        let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".parse().unwrap());
+        let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".parse()?);
         // TODO(jwall): Take this from clap arguments
-        let listener = Async::<TcpListener>::bind(socket_addr).unwrap();
-        smol_axum::serve(ex.clone(), listener, router).await
+        let listener = Async::<TcpListener>::bind(socket_addr)?;
+        smol_axum::serve(ex.clone(), listener, router).await?;
+        Ok(())
     }
 }
