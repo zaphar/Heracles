@@ -17,21 +17,30 @@ use std::sync::Arc;
 
 use async_io::Async;
 use axum::{self, routing::*, Router};
+use clap::{self, Parser};
 use smol_macros::main;
 
 mod routes;
 
+#[derive(clap::Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[arg(long)]
+    listen: Option<std::net::SocketAddr>,
+}
+
 main! {
     async fn main(ex: &Arc<smol_macros::Executor<'_>>) -> io::Result<()> {
+        let args = Cli::parse();
         let router = Router::new()
             // JSON api endpoints
             .nest("/api", routes::mk_api_routes())
             // HTMX ui component endpoints
             .nest("/ui", routes::mk_ui_routes())
             .route("/", get(routes::index));
-        
+        let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".parse().unwrap());
         // TODO(jwall): Take this from clap arguments
-        let listener = Async::<TcpListener>::bind(([127, 0, 0, 1], 3000)).unwrap();
+        let listener = Async::<TcpListener>::bind(socket_addr).unwrap();
         smol_axum::serve(ex.clone(), listener, router).await
     }
 }
