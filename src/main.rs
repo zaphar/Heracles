@@ -11,43 +11,66 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::net::TcpListener;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use anyhow;
-use async_io::Async;
 use axum::{self, extract::State, routing::*, Router};
-use clap::{self, Parser};
-use smol_macros::main;
+use clap::{self, Parser, ValueEnum};
+use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 mod dashboard;
 mod query;
 mod routes;
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum Verbosity {
+    ERROR,
+    WARN,
+    INFO,
+    DEBUG,
+    TRACE,
+}
+
 #[derive(clap::Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[arg(long)]
-    listen: Option<std::net::SocketAddr>,
+    pub listen: Option<String>,
     #[arg(long)]
-    config: PathBuf,
+    pub config: PathBuf,
+    #[arg(long, value_enum, default_value_t = Verbosity::INFO)]
+    pub verbose: Verbosity,
 }
 
-main! {
-    async fn main(ex: &Arc<smol_macros::Executor<'_>>) -> anyhow::Result<()> {
-        let args = Cli::parse();
-        let config = std::sync::Arc::new(dashboard::read_dashboard_list(args.config.as_path())?);
-        let router = Router::new()
-            // JSON api endpoints
-            .nest("/api", routes::mk_api_routes())
-            // HTMX ui component endpoints
-            .nest("/ui", routes::mk_ui_routes())
-            .route("/", get(routes::index).with_state(config.clone()))
-            .with_state(State(config.clone()));
-        let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".parse()?);
-        let listener = Async::<TcpListener>::bind(socket_addr)?;
-        smol_axum::serve(ex.clone(), listener, router).await?;
-        Ok(())
-    }
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let args = Cli::parse();
+    let subscriber_builder = FmtSubscriber::builder().with_max_level(match args.verbose {
+        Verbosity::ERROR => Level::ERROR,
+        Verbosity::WARN => Level::WARN,
+        Verbosity::INFO => Level::INFO,
+        Verbosity::DEBUG => Level::DEBUG,
+        Verbosity::TRACE => Level::TRACE,
+    });
+    tracing::subscriber::set_global_default(
+        subscriber_builder.with_writer(std::io::stderr).finish(),
+    )
+    .expect("setting default subscriber failed");
+
+    let config = std::sync::Arc::new(dashboard::read_dashboard_list(args.config.as_path())?);
+    let router = Router::new()
+        // JSON api endpoints
+        .nest("/api", routes::mk_api_routes(config.clone()))
+        // HTMX ui component endpoints
+        .nest("/ui", routes::mk_ui_routes(config.clone()))
+        .route("/", get(routes::index).with_state(config.clone()))
+        .layer(TraceLayer::new_for_http())
+        .with_state(State(config.clone()));
+    let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".to_string());
+    let listener = TcpListener::bind(socket_addr).await.expect("Unable to bind listener to address");
+    axum::serve(listener, router).await?;
+    Ok(())
 }

@@ -13,19 +13,52 @@
 // limitations under the License.
 use std::sync::Arc;
 
+use axum::{
+    extract::{Path, State},
+    routing::get,
+    Json, Router,
+};
 use maud::{html, Markup};
-use axum::{extract::State, Router};
+use tracing::debug;
 
 use crate::dashboard::Dashboard;
+use crate::query::{to_samples, QueryResult};
 
 type Config = State<Arc<Vec<Dashboard>>>;
 
-pub fn mk_api_routes() -> Router<Config> {
-    // Query routes
-    Router::new()
+//#[axum_macros::debug_handler]
+pub async fn graph_query(
+    State(config): Config,
+    Path((dash_idx, graph_idx)): Path<(usize, usize)>,
+) -> Json<QueryResult> {
+    debug!("Getting data for query");
+    let graph = config
+        .get(dash_idx)
+        .expect("No such dashboard index")
+        .graphs
+        .get(graph_idx)
+        .expect(&format!("No such graph in dasboard {}", dash_idx));
+    let data = to_samples(
+        graph
+            .get_query_connection()
+            .get_results()
+            .await
+            .expect("Unable to get query results")
+            .data()
+            .clone(),
+    );
+    Json(data)
 }
 
-pub fn mk_ui_routes() -> Router<Config> {
+pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
+    // Query routes
+    Router::new().route(
+        "/dash/:dash_idx/graph/:graph_idx",
+        get(graph_query).with_state(config),
+    )
+}
+
+pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     Router::new()
 }
 
@@ -43,7 +76,10 @@ pub async fn index(State(config): Config) -> Markup {
 }
 
 pub async fn app(State(config): Config) -> Markup {
-    let titles = config.iter().map(|d| d.title.clone()).collect::<Vec<String>>();
+    let titles = config
+        .iter()
+        .map(|d| d.title.clone())
+        .collect::<Vec<String>>();
     html! {
         div {
             // Header menu
