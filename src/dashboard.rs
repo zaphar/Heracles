@@ -18,14 +18,14 @@ use serde_yaml;
 
 #[derive(Deserialize)]
 pub struct Dashboard {
-    title: String,
-    graphs: Vec<Graph>,
+    pub title: String,
+    pub graphs: Vec<Graph>,
 }
 
 #[derive(Deserialize)]
 pub struct Graph {
-    title: String,
-    query: String,
+    pub title: String,
+    pub query: String,
 }
 
 pub fn read_dashboard_list(path: &Path) -> anyhow::Result<Vec<Dashboard>> {

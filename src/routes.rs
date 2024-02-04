@@ -20,12 +20,12 @@ use crate::dashboard::Dashboard;
 
 type Config = State<Arc<Vec<Dashboard>>>;
 
-pub fn mk_api_routes() -> Router {
+pub fn mk_api_routes() -> Router<Config> {
     // Query routes
     Router::new()
 }
 
-pub fn mk_ui_routes() -> Router {
+pub fn mk_ui_routes() -> Router<Config> {
     Router::new()
 }
 
@@ -43,10 +43,15 @@ pub async fn index(State(config): Config) -> Markup {
 }
 
 pub async fn app(State(config): Config) -> Markup {
+    let titles = config.iter().map(|d| d.title.clone()).collect::<Vec<String>>();
     html! {
         div {
             // Header menu
-            div { }
+            ul {
+                @for title in &titles {
+                    li { (title) }
+                }
+            }
             // dashboard display
             div { }
         }
