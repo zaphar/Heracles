@@ -80,17 +80,18 @@ pub async fn app(State(config): Config) -> Markup {
     let titles = config
         .iter()
         .map(|d| d.title.clone())
-        .collect::<Vec<String>>();
+        .enumerate()
+        .collect::<Vec<(usize, String)>>();
     html! {
         div {
             // Header menu
             ul {
                 @for title in &titles {
-                    li { (title) }
+                    li hx-get=(format!("/ui/dash/{}/", title.0)) hx-target="#dashboard" { (title.1) }
                 }
             }
             // dashboard display
-            div { }
+            div id="dashboard" { }
         }
     }
 }
