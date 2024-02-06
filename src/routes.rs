@@ -18,7 +18,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use maud::{html, Markup};
+use maud::{html, Markup, PreEscaped};
 use tracing::debug;
 
 use crate::dashboard::Dashboard;
@@ -69,6 +69,7 @@ pub async fn index(State(config): Config) -> Markup {
                 title { ("Heracles - Prometheus Unshackled") }
             }
             body {
+                script { (PreEscaped(include_str!("../static/htmx.min.js"))) }
                 (app(State(config.clone())).await)
             }
         }
