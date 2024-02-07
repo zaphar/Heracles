@@ -63,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
     let config = std::sync::Arc::new(dashboard::read_dashboard_list(args.config.as_path())?);
     let router = Router::new()
         // JSON api endpoints
+        .nest("/js", routes::mk_js_routes(config.clone()))
         .nest("/api", routes::mk_api_routes(config.clone()))
         // HTMX ui component endpoints
         .nest("/ui", routes::mk_ui_routes(config.clone()))
