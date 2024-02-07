@@ -21,7 +21,7 @@ use axum::{
 use maud::{html, Markup, PreEscaped};
 use tracing::debug;
 
-use crate::dashboard::Dashboard;
+use crate::dashboard::{Dashboard, Graph};
 use crate::query::{to_samples, QueryResult};
 
 type Config = State<Arc<Vec<Dashboard>>>;
@@ -58,17 +58,46 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     )
 }
 
-pub async fn dash_ui(State(config): State<Config>, Path(idx): Path<usize>) -> Markup {
+pub fn graph_component(graph: &Graph) -> Markup {
     html!(
-        "TODO(jwall): Fill this in"
+        div {
+            h2 { (graph.title) }
+            div { "data/graph goes here" }
+        }
+    )
+}
+
+pub async fn graph_ui(
+    State(config): State<Config>,
+    Path((dash_idx, graph_idx)): Path<(usize, usize)>,
+) -> Markup {
+    let graph = config
+        .get(dash_idx)
+        .expect("No such dashboard")
+        .graphs
+        .get(graph_idx)
+        .expect("No such graph");
+    graph_component(graph)
+}
+
+pub async fn dash_ui(State(config): State<Config>, Path(idx): Path<usize>) -> Markup {
+    // TODO(zaphar): Should do better http error reporting here.
+    let dash = config.get(idx).expect("No such dashboard");
+    html!(
+        h1 { (dash.title) }
+        @for graph in &dash.graphs {
+            (graph_component(graph))
+        }
     )
 }
 
 pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
-    Router::new().route(
-        "/dash/:idx",
-        get(dash_ui).with_state(State(config))
-    )
+    Router::new()
+        .route("/dash/:idx", get(dash_ui).with_state(State(config.clone())))
+        .route(
+            "/dash/:dash_idx/graph/:graph_idx",
+            get(graph_ui).with_state(State(config)),
+        )
 }
 
 pub async fn index(State(config): State<Config>) -> Markup {
