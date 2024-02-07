@@ -78,6 +78,7 @@ pub async fn index(State(config): State<Config>) -> Markup {
                 title { ("Heracles - Prometheus Unshackled") }
             }
             body {
+                script { (PreEscaped(include_str!("../static/plotly-2.27.0.min.js"))) }
                 script { (PreEscaped(include_str!("../static/htmx.min.js"))) }
                 (app(State(config.clone())).await)
             }
