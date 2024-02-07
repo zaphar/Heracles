@@ -58,11 +58,17 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     )
 }
 
-pub fn graph_component(graph: &Graph) -> Markup {
+// TODO(jwall): This should probably be encapsulated in a web component?
+pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
+    let graph_id = format!("graph-{}-{}", dash_idx, graph_idx);
+    let script = format!("var data = []; Plotly.newPlot('{}', data, {{ width: 500, height: 500 }});", graph_id);
     html!(
         div {
             h2 { (graph.title) }
-            div { "data/graph goes here" }
+            script {
+                (script)
+            }
+            div id=(graph_id) { }
         }
     )
 }
@@ -77,23 +83,24 @@ pub async fn graph_ui(
         .graphs
         .get(graph_idx)
         .expect("No such graph");
-    graph_component(graph)
+    graph_component(dash_idx, graph_idx, graph)
 }
 
-pub async fn dash_ui(State(config): State<Config>, Path(idx): Path<usize>) -> Markup {
+pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) -> Markup {
     // TODO(zaphar): Should do better http error reporting here.
-    let dash = config.get(idx).expect("No such dashboard");
+    let dash = config.get(dash_idx).expect("No such dashboard");
+    let graph_iter = dash.graphs.iter().enumerate().collect::<Vec<(usize, &Graph)>>();
     html!(
         h1 { (dash.title) }
-        @for graph in &dash.graphs {
-            (graph_component(graph))
+        @for (idx, graph) in &graph_iter {
+            (graph_component(dash_idx, *idx, *graph))
         }
     )
 }
 
 pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     Router::new()
-        .route("/dash/:idx", get(dash_ui).with_state(State(config.clone())))
+        .route("/dash/:dash_idx", get(dash_ui).with_state(State(config.clone())))
         .route(
             "/dash/:dash_idx/graph/:graph_idx",
             get(graph_ui).with_state(State(config)),
