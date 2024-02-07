@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api", routes::mk_api_routes(config.clone()))
         // HTMX ui component endpoints
         .nest("/ui", routes::mk_ui_routes(config.clone()))
-        .route("/", get(routes::index).with_state(config.clone()))
+        .route("/", get(routes::index).with_state(State(config.clone())))
         .layer(TraceLayer::new_for_http())
         .with_state(State(config.clone()));
     let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".to_string());

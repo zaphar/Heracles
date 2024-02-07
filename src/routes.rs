@@ -58,11 +58,20 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     )
 }
 
-pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
-    Router::new()
+pub async fn dash_ui(State(config): State<Config>, Path(idx): Path<usize>) -> Markup {
+    html!(
+        "TODO(jwall): Fill this in"
+    )
 }
 
-pub async fn index(State(config): Config) -> Markup {
+pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
+    Router::new().route(
+        "/dash/:idx",
+        get(dash_ui).with_state(State(config))
+    )
+}
+
+pub async fn index(State(config): State<Config>) -> Markup {
     html! {
         html {
             head {
@@ -76,7 +85,7 @@ pub async fn index(State(config): Config) -> Markup {
     }
 }
 
-pub async fn app(State(config): Config) -> Markup {
+pub async fn app(State(config): State<Config>) -> Markup {
     let titles = config
         .iter()
         .map(|d| d.title.clone())
@@ -87,7 +96,7 @@ pub async fn app(State(config): Config) -> Markup {
             // Header menu
             ul {
                 @for title in &titles {
-                    li hx-get=(format!("/ui/dash/{}/", title.0)) hx-target="#dashboard" { (title.1) }
+                    li hx-get=(format!("/ui/dash/{}", title.0)) hx-target="#dashboard" { (title.1) }
                 }
             }
             // dashboard display
