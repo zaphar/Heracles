@@ -63,11 +63,14 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
 // TODO(jwall): This should probably be encapsulated in a web component?
 pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
     let graph_id = format!("graph-{}-{}", dash_idx, graph_idx);
+    let graph_data_uri = format!("/api/dash/{}/graph/{}", dash_idx, graph_idx);
     // initialize the plot with Plotly.react
     // Update plot with Plotly.react which is more efficient
     let script = format!(
-        "var data = []; Plotly.react('{}', data, {{ width: 500, height: 500 }});",
-        graph_id
+        "var graph{graph_idx} = new Timeseries('{uri}', '{graph_id}'); graph{graph_idx}.updateGraph();",
+        uri = graph_data_uri,
+        graph_id = graph_id,
+        graph_idx = graph_idx,
     );
     html!(
         div {
@@ -130,6 +133,7 @@ pub async fn index(State(config): State<Config>) -> Markup {
             body {
                 script src="/js/plotly.js" { }
                 script src="/js/htmx.js" {  }
+                script src="/js/lib.js" {  }
                 (app(State(config.clone())).await)
             }
         }
@@ -163,6 +167,7 @@ pub fn javascript_response(content: &str) -> Response<String> {
         .expect("Invalid javascript response")
 }
 
+// TODO(jwall): Should probably hook in one of the axum directory serving crates here.
 pub async fn htmx() -> Response<String> {
     javascript_response(include_str!("../static/htmx.min.js"))
 }
@@ -171,9 +176,14 @@ pub async fn plotly() -> Response<String> {
     javascript_response(include_str!("../static/plotly-2.27.0.min.js"))
 }
 
+pub async fn lib() -> Response<String> {
+    javascript_response(include_str!("../static/lib.js"))
+}
+
 pub fn mk_js_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     Router::new()
         .route("/plotly.js", get(plotly))
+        .route("/lib.js", get(lib))
         .route("/htmx.js", get(htmx))
         .with_state(State(config))
 }

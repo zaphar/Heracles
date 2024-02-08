@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use prometheus_http_query::{Client, response::{PromqlResult, Data}};
 use serde::{Serialize, Deserialize};
 use tracing::debug;
+use chrono::prelude::*;
 
 pub struct QueryConn<'conn> {
     source: &'conn str,
@@ -33,13 +34,16 @@ impl<'conn> QueryConn<'conn> {
     pub async fn get_results(&self) -> anyhow::Result<PromqlResult> {
         debug!("Getting results for query");
         let client = Client::try_from(self.source)?;
-        Ok(client.query(self.query).get().await?)
+        let end = Utc::now().timestamp();
+        let start = end - (60 * 10);
+        let step_resolution = 10 as f64;
+        Ok(client.query_range(self.query, start, end, step_resolution).get().await?)
     }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct DataPoint {
-    timesstamp: f64,
+    timestamp: f64,
     value: f64,
 }
 
@@ -56,18 +60,18 @@ pub fn to_samples(data: Data) -> QueryResult {
             QueryResult::Series(range.drain(0..).map(|rv| {
                 let (metric, mut samples) = rv.into_inner();
                 (metric, samples.drain(0..).map(|s| {
-                    DataPoint { timesstamp: s.timestamp(), value: s.value() }
+                    DataPoint { timestamp: s.timestamp(), value: s.value() }
                 }).collect())
             }).collect())
         }
         Data::Vector(mut vector) => {
             QueryResult::Series(vector.drain(0..).map(|iv| {
                 let (metric, sample) = iv.into_inner();
-                (metric, vec![DataPoint { timesstamp: sample.timestamp(), value: sample.value() }])
+                (metric, vec![DataPoint { timestamp: sample.timestamp(), value: sample.value() }])
             }).collect())
         }
         Data::Scalar(sample) => {
-            QueryResult::Scalar(DataPoint { timesstamp: sample.timestamp(), value: sample.value() })
+            QueryResult::Scalar(DataPoint { timestamp: sample.timestamp(), value: sample.value() })
         }
     }
 }
