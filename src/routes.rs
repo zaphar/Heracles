@@ -64,21 +64,10 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
 pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
     let graph_id = format!("graph-{}-{}", dash_idx, graph_idx);
     let graph_data_uri = format!("/api/dash/{}/graph/{}", dash_idx, graph_idx);
-    // initialize the plot with Plotly.react
-    // Update plot with Plotly.react which is more efficient
-    let script = format!(
-        "var graph{graph_idx} = new Timeseries('{uri}', '{graph_id}'); graph{graph_idx}.updateGraph();",
-        uri = graph_data_uri,
-        graph_id = graph_id,
-        graph_idx = graph_idx,
-    );
     html!(
         div {
             h2 { (graph.title) }
-            script {
-                (script)
-            }
-            div id=(graph_id) { }
+            timeseries-graph uri=(graph_data_uri) id=(graph_id) { }
         }
     )
 }
@@ -134,6 +123,9 @@ pub async fn index(State(config): State<Config>) -> Markup {
                 script src="/js/plotly.js" { }
                 script src="/js/htmx.js" {  }
                 script src="/js/lib.js" {  }
+                template id="timeseries_template" {
+                    div;
+                }
                 (app(State(config.clone())).await)
             }
         }

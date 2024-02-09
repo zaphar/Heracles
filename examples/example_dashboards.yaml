@@ -3,15 +3,15 @@
   graphs:
     - title: Node cpu
       source: http://heimdall:9001
-      query: 'node_cpu_seconds_total{job="nodestats"}'
+      query: 'sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) * 100'
     - title: Node memory
       source: http://heimdall:9001
-      query: 'node_memory_MemFree_bytes{instance="andrew:9002",job="nodestats"}'
+      query: 'node_memory_MemFree_bytes{job="nodestats"}'
 - title: Test Dasbboard 2
   graphs:
     - title: Node cpu
       source: http://heimdall:9001
-      query: 'node_cpu_seconds_total{job="nodestats"}'
+      query: 'sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) * 100'
     - title: Node memory
       source: http://heimdall:9001
-      query: 'node_memory_MemFree_bytes{instance="andrew:9002",job="nodestats"}'
+      query: 'node_memory_MemFree_bytes{,job="nodestats"}'
