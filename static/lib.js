@@ -4,13 +4,14 @@ class TimeseriesGraph extends HTMLElement {
     #height;
     #intervalId;
     #pollSeconds;
+    #label;
     constructor() {
         super();
         const root = this.attachShadow({ mode: "open" });
         var template = document.getElementById("timeseries_template");
-        this.#width = 1000;
-        this.#height = 500;
-        this.#pollSeconds = 5;
+        this.#width = 800;
+        this.#height = 600;
+        this.#pollSeconds = 30;
         root.appendChild(template.content.cloneNode(true));
     }
 
@@ -30,19 +31,22 @@ class TimeseriesGraph extends HTMLElement {
            case 'poll-seconds':
                 this.#pollSeconds = newValue;
                 break;
+           case 'label':
+                this.#label = newValue;
+                break;
            default: // do nothing;
                 break;
         }
-        this.updateGraph();
-        // TODO(zaphar): reset update timer as well
+        this.resetInterval();
     }
 
     connectedCallback() {
         // TODO(zaphar): Set up the timer loop to update graph data.
         this.#uri = this.getAttribute('uri');
-        if (this.#uri) {
-            this.updateGraph();
-        }
+        this.#width = this.getAttribute('width');
+        this.#height = this.getAttribute('height');
+        this.#pollSeconds = this.getAttribute('poll-seconds');
+        this.#label = this.getAttribute('label');
         this.resetInterval()
     }
 
@@ -67,6 +71,9 @@ class TimeseriesGraph extends HTMLElement {
     }
     
     resetInterval() {
+        if (this.#uri) {
+            this.updateGraph();
+        }
         this.stopInterval()
         this.#intervalId = setInterval(() => this.updateGraph(), 1000 * this.#pollSeconds);
     }
@@ -88,14 +95,18 @@ class TimeseriesGraph extends HTMLElement {
         if (data.Series) {
             var traces = [];
             for (const pair of data.Series) {
+                const series = pair[1];
+                const labels = pair[0];
                 var trace = {
                     type: "scatter",
                     mode: "lines",
                     x: [],
                     y: []
                 };
-                //const labels = pair[0];
-                const series = pair[1];
+                console.log("labels: ", labels, this.#label);
+                if (labels[this.#label]) {
+                    trace.name = labels[this.#label];
+                };
                 for (const point of series) {
                     trace.x.push(point.timestamp);
                     trace.y.push(point.value);

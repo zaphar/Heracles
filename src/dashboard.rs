@@ -30,6 +30,7 @@ pub struct Graph {
     pub title: String,
     pub source: String,
     pub query: String,
+    pub name_label: String,
 }
 
 impl Graph {

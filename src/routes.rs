@@ -60,14 +60,13 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     )
 }
 
-// TODO(jwall): This should probably be encapsulated in a web component?
 pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
     let graph_id = format!("graph-{}-{}", dash_idx, graph_idx);
     let graph_data_uri = format!("/api/dash/{}/graph/{}", dash_idx, graph_idx);
     html!(
         div {
             h2 { (graph.title) }
-            timeseries-graph uri=(graph_data_uri) id=(graph_id) { }
+            timeseries-graph uri=(graph_data_uri) id=(graph_id) label=(graph.name_label) { }
         }
     )
 }
@@ -124,6 +123,7 @@ pub async fn index(State(config): State<Config>) -> Markup {
                 script src="/js/htmx.js" {  }
                 script src="/js/lib.js" {  }
                 template id="timeseries_template" {
+                    div;
                     div;
                 }
                 (app(State(config.clone())).await)
