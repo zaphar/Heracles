@@ -41,19 +41,16 @@ class TimeseriesGraph extends HTMLElement {
     }
 
     connectedCallback() {
-        // TODO(zaphar): Set up the timer loop to update graph data.
-        this.#uri = this.getAttribute('uri');
-        this.#width = this.getAttribute('width');
-        this.#height = this.getAttribute('height');
-        this.#pollSeconds = this.getAttribute('poll-seconds');
-        this.#label = this.getAttribute('label');
+        this.#uri = this.getAttribute('uri') || this.#uri;
+        this.#width = this.getAttribute('width') || this.#width;
+        this.#height = this.getAttribute('height') || this.#height;
+        this.#pollSeconds = this.getAttribute('poll-seconds') || this.#pollSeconds;
+        this.#label = this.getAttribute('label') || null;
         this.resetInterval()
     }
 
     disconnectedCallback() {
-        // TODO(zaphar): Turn off the timer loop to update graph.
-        clearInterval(this.#intervalId);
-        this.#intervalId = null;
+        this.stopInterval()
     }
 
     static elementName = "timeseries-graph";
@@ -71,10 +68,10 @@ class TimeseriesGraph extends HTMLElement {
     }
     
     resetInterval() {
+        this.stopInterval()
         if (this.#uri) {
             this.updateGraph();
         }
-        this.stopInterval()
         this.#intervalId = setInterval(() => this.updateGraph(), 1000 * this.#pollSeconds);
     }
 
@@ -114,7 +111,16 @@ class TimeseriesGraph extends HTMLElement {
                 traces.push(trace);
             }
             console.log("Traces: ", traces);
-            Plotly.react(this.getTargetNode(), traces, { width: this.#width, height: this.#height });
+            Plotly.react(this.getTargetNode(), traces,
+                {
+                    legend: {
+                        orientation: 'h'
+                    }
+                },
+                {
+                    displayModeBar: false,
+                    responsive: true
+                });
         } else if (data.Scalar) {
             // The graph should be a single value
         }
