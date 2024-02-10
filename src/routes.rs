@@ -122,10 +122,6 @@ pub async fn index(State(config): State<Config>) -> Markup {
                 script src="/js/plotly.js" { }
                 script src="/js/htmx.js" {  }
                 script src="/js/lib.js" {  }
-                template id="timeseries_template" {
-                    div;
-                    div;
-                }
                 (app(State(config.clone())).await)
             }
         }

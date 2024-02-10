@@ -5,14 +5,13 @@ class TimeseriesGraph extends HTMLElement {
     #intervalId;
     #pollSeconds;
     #label;
+    #targetNode = null;
     constructor() {
         super();
-        const root = this.attachShadow({ mode: "open" });
-        var template = document.getElementById("timeseries_template");
         this.#width = 800;
         this.#height = 600;
         this.#pollSeconds = 30;
-        root.appendChild(template.content.cloneNode(true));
+        this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
     static observedAttributes = ['uri', 'width', 'height', 'poll-seconds'];
@@ -56,8 +55,8 @@ class TimeseriesGraph extends HTMLElement {
     static elementName = "timeseries-graph";
 
     getTargetNode() {
-        console.log("shadowroot: ", this.shadowRoot);
-        return this.shadowRoot.firstChild;
+        console.log("targetNode: ", this.#targetNode);
+        return this.#targetNode;
     }
    
     stopInterval() {
@@ -96,7 +95,7 @@ class TimeseriesGraph extends HTMLElement {
                 const labels = pair[0];
                 var trace = {
                     type: "scatter",
-                    mode: "lines",
+                    mode: "lines+text",
                     x: [],
                     y: []
                 };
