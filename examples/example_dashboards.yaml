@@ -13,5 +13,5 @@
       name_label: instance
     - title: Node memory
       source: http://heimdall:9001
-      query: 'node_memory_MemFree_bytes{job="nodestats"}'
+      query: 'node_memory_MemFree_bytes{,job="nodestats"}'
       name_label: instance
