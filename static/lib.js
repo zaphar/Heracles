@@ -101,6 +101,15 @@ class TimeseriesGraph extends HTMLElement {
 
     async updateGraph() {
         const data = await this.fetchData();
+        const config = {
+            legend: {
+                orientation: 'h'
+            }
+        };
+        const layout = {
+            displayModeBar: false,
+            responsive: true
+        };
         if (data.Series) {
             // https://plotly.com/javascript/reference/scatter/
             var traces = [];
@@ -118,23 +127,14 @@ class TimeseriesGraph extends HTMLElement {
                     trace.name = labels[this.#label];
                 };
                 for (const point of series) {
-                    trace.x.push(point.timestamp);
+                    trace.x.push(new Date(point.timestamp * 1000));
                     trace.y.push(point.value);
                 }
                 traces.push(trace);
             }
             console.log("Traces: ", traces);
             // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
-            Plotly.react(this.getTargetNode(), traces,
-                {
-                    legend: {
-                        orientation: 'h'
-                    }
-                },
-                {
-                    displayModeBar: false,
-                    responsive: true
-                });
+            Plotly.react(this.getTargetNode(), traces, config, layout);
         } else if (data.Scalar) {
             // https://plotly.com/javascript/reference/bar/
             console.log("scalar data: ", data.Scalar);
@@ -155,16 +155,7 @@ class TimeseriesGraph extends HTMLElement {
                 traces.push(trace);
             }
             console.log("Traces: ", traces);
-            Plotly.react(this.getTargetNode(), traces,
-                {
-                    legend: {
-                        orientation: 'h'
-                    }
-                },
-                {
-                    displayModeBar: false,
-                    responsive: true
-                });
+            Plotly.react(this.getTargetNode(), traces, config, layout);
         }
     }
 }
