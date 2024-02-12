@@ -4,14 +4,17 @@
     - title: Node cpu
       source: http://heimdall:9001
       query: 'sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) * 100'
+      query_type: Range
       name_label: instance
 - title: Test Dasbboard 2
   graphs:
     - title: Node cpu
       source: http://heimdall:9001
       query: 'sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) * 100'
+      query_type: Range
       name_label: instance
     - title: Node memory
       source: http://heimdall:9001
-      query: 'node_memory_MemFree_bytes{,job="nodestats"}'
+      query: 'node_memory_MemFree_bytes{job="nodestats"}'
+      query_type: Scalar
       name_label: instance

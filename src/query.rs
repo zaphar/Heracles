@@ -18,16 +18,24 @@ use serde::{Serialize, Deserialize};
 use tracing::debug;
 use chrono::prelude::*;
 
+#[derive(Deserialize, Clone)]
+pub enum QueryType {
+    Range,
+    Scalar,
+}
+
 pub struct QueryConn<'conn> {
     source: &'conn str,
     query: &'conn str,
+    query_type: QueryType,    
 }
 
 impl<'conn> QueryConn<'conn> {
-    pub fn new<'a: 'conn>(source: &'a str, query: &'a str) -> Self {
+    pub fn new<'a: 'conn>(source: &'a str, query: &'a str, query_type: QueryType) -> Self {
         Self {
             source,
             query,
+            query_type,
         }
     }
 
@@ -37,7 +45,10 @@ impl<'conn> QueryConn<'conn> {
         let end = Utc::now().timestamp();
         let start = end - (60 * 10);
         let step_resolution = 10 as f64;
-        Ok(client.query_range(self.query, start, end, step_resolution).get().await?)
+        match self.query_type {
+            QueryType::Range => Ok(client.query_range(self.query, start, end, step_resolution).get().await?),
+            QueryType::Scalar => Ok(client.query(self.query).get().await?),
+        }
     }
 }
 
@@ -51,7 +62,7 @@ pub struct DataPoint {
 #[derive(Serialize, Deserialize)]
 pub enum QueryResult {
     Series(Vec<(HashMap<String, String>, Vec<DataPoint>)>),
-    Scalar(DataPoint),
+    Scalar(Vec<(HashMap<String, String>, DataPoint)>),
 }
 
 pub fn to_samples(data: Data) -> QueryResult {
@@ -65,13 +76,13 @@ pub fn to_samples(data: Data) -> QueryResult {
             }).collect())
         }
         Data::Vector(mut vector) => {
-            QueryResult::Series(vector.drain(0..).map(|iv| {
+            QueryResult::Scalar(vector.drain(0..).map(|iv| {
                 let (metric, sample) = iv.into_inner();
-                (metric, vec![DataPoint { timestamp: sample.timestamp(), value: sample.value() }])
+                (metric, DataPoint { timestamp: sample.timestamp(), value: sample.value() })
             }).collect())
         }
         Data::Scalar(sample) => {
-            QueryResult::Scalar(DataPoint { timestamp: sample.timestamp(), value: sample.value() })
+            QueryResult::Scalar(vec![(HashMap::new(), DataPoint { timestamp: sample.timestamp(), value: sample.value() })])
         }
     }
 }

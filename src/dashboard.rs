@@ -15,9 +15,9 @@ use std::path::Path;
 
 use serde::Deserialize;
 use serde_yaml;
-use tracing::{debug, info};
+use tracing::debug;
 
-use crate::query::QueryConn;
+use crate::query::{QueryConn, QueryType};
 
 #[derive(Deserialize)]
 pub struct Dashboard {
@@ -31,12 +31,13 @@ pub struct Graph {
     pub source: String,
     pub query: String,
     pub name_label: String,
+    pub query_type: QueryType,
 }
 
 impl Graph {
     pub fn get_query_connection<'conn, 'graph: 'conn>(&'graph self) -> QueryConn<'conn> {
         debug!(query=self.query, source=self.source, "Getting query connection for graph");
-        QueryConn::new(&self.source, &self.query)
+        QueryConn::new(&self.source, &self.query, self.query_type.clone())
     }
 }
 
