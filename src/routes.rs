@@ -19,8 +19,9 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use axum_macros::debug_handler;
-use maud::{html, Markup, PreEscaped};
+
+// https://maud.lambda.xyz/getting-started.html
+use maud::{html, Markup};
 use tracing::debug;
 
 use crate::dashboard::{Dashboard, Graph};
@@ -28,7 +29,6 @@ use crate::query::{to_samples, QueryResult};
 
 type Config = State<Arc<Vec<Dashboard>>>;
 
-//#[axum_macros::debug_handler]
 pub async fn graph_query(
     State(config): Config,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,

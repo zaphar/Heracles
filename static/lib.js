@@ -102,6 +102,7 @@ class TimeseriesGraph extends HTMLElement {
     async updateGraph() {
         const data = await this.fetchData();
         if (data.Series) {
+            // https://plotly.com/javascript/reference/scatter/
             var traces = [];
             for (const pair of data.Series) {
                 const series = pair[1];
@@ -123,6 +124,7 @@ class TimeseriesGraph extends HTMLElement {
                 traces.push(trace);
             }
             console.log("Traces: ", traces);
+            // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
             Plotly.react(this.getTargetNode(), traces,
                 {
                     legend: {
@@ -134,6 +136,7 @@ class TimeseriesGraph extends HTMLElement {
                     responsive: true
                 });
         } else if (data.Scalar) {
+            // https://plotly.com/javascript/reference/bar/
             console.log("scalar data: ", data.Scalar);
             var traces = [];
             for (const pair of data.Scalar) {
