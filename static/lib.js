@@ -31,22 +31,22 @@ class TimeseriesGraph extends HTMLElement {
 
     attributeChanged(name, _oldValue, newValue) {
         switch (name) {
-           case 'uri':
+            case 'uri':
                 this.#uri = newValue;
                 break;
-           case 'width':
+            case 'width':
                 this.#width = newValue;
                 break;
-           case 'height':
+            case 'height':
                 this.#height = newValue;
                 break;
-           case 'poll-seconds':
+            case 'poll-seconds':
                 this.#pollSeconds = newValue;
                 break;
-           case 'label':
+            case 'label':
                 this.#label = newValue;
                 break;
-           default: // do nothing;
+            default: // do nothing;
                 break;
         }
         this.resetInterval();
@@ -71,14 +71,14 @@ class TimeseriesGraph extends HTMLElement {
         console.log("targetNode: ", this.#targetNode);
         return this.#targetNode;
     }
-   
+
     stopInterval() {
         if (this.#intervalId) {
             clearInterval(this.#intervalId);
             this.#intervalId = null;
         }
     }
-    
+
     resetInterval() {
         this.stopInterval()
         if (this.#uri) {
@@ -92,7 +92,7 @@ class TimeseriesGraph extends HTMLElement {
             customElements.define(TimeseriesGraph.elementName, TimeseriesGraph);
         }
     }
-    
+
     async fetchData() {
         const response = await fetch(this.#uri);
         const data = await response.json();
