@@ -34,15 +34,15 @@ pub async fn graph_query(
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
 ) -> Json<QueryResult> {
     debug!("Getting data for query");
-    let graph = config
+    let dash = config
         .get(dash_idx)
-        .expect("No such dashboard index")
-        .graphs
+        .expect("No such dashboard index");
+    let graph = dash.graphs
         .get(graph_idx)
         .expect(&format!("No such graph in dasboard {}", dash_idx));
     let data = to_samples(
         graph
-            .get_query_connection()
+            .get_query_connection(&dash.span)
             .get_results()
             .await
             .expect("Unable to get query results")
@@ -54,6 +54,7 @@ pub async fn graph_query(
 
 pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     // Query routes
+    // TODO(zaphar): Allow passing the timespan in via query
     Router::new().route(
         "/dash/:dash_idx/graph/:graph_idx",
         get(graph_query).with_state(config),

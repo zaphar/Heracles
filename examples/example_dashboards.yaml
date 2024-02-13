@@ -11,6 +11,10 @@
         step_duration: 1min
       name_label: instance
 - title: Test Dasbboard 2
+  span:
+    start: 2024-02-10T00:00:00.00Z
+    duration: 2d
+    step_duration: 1min
   graphs:
     - title: Node cpu
       source: http://heimdall:9001

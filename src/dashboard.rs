@@ -14,6 +14,7 @@
 use std::path::Path;
 
 use chrono::prelude::*;
+use chrono::Duration;
 use serde::Deserialize;
 use serde_yaml;
 use tracing::{debug, error};
@@ -21,16 +22,17 @@ use tracing::{debug, error};
 use crate::query::{QueryConn, QueryType};
 
 #[derive(Deserialize)]
-pub struct Dashboard {
-    pub title: String,
-    pub graphs: Vec<Graph>,
-}
-
-#[derive(Deserialize)]
 pub struct GraphSpan {
     pub start: DateTime<Utc>,
     pub duration: String,
     pub step_duration: String,
+}
+
+#[derive(Deserialize)]
+pub struct Dashboard {
+    pub title: String,
+    pub graphs: Vec<Graph>,
+    pub span: Option<GraphSpan>
 }
 
 #[derive(Deserialize)]
@@ -44,9 +46,9 @@ pub struct Graph {
     pub query_type: QueryType,
 }
 
-fn duration_from_string(duration: &str) -> Option<chrono::Duration> {
+fn duration_from_string(duration: &str) -> Option<Duration> {
     match parse_duration::parse(duration) {
-        Ok(d) => match chrono::Duration::from_std(d) {
+        Ok(d) => match Duration::from_std(d) {
             Ok(d) => Some(d),
             Err(e) => {
                 error!(err = ?e, "specified Duration is out of bounds");
@@ -63,30 +65,40 @@ fn duration_from_string(duration: &str) -> Option<chrono::Duration> {
     }
 }
 
+fn graph_span_to_tuple(span: &Option<GraphSpan>) -> Option<(DateTime<Utc>, Duration, Duration)> {
+    if span.is_none() {
+        return None;
+    }
+    let span = span.as_ref().unwrap();
+    let duration = match duration_from_string(&span.duration) {
+        Some(d) => d,
+        None => {
+            error!("Invalid query duration not assigning span to to graph query");
+            return None;
+        }
+    };
+    let step_duration = match duration_from_string(&span.step_duration) {
+        Some(d) => d,
+        None => {
+            error!("Invalid query step resolution not assigning span to to graph query");
+            return None;
+        }
+    };
+    Some((span.start.clone(), duration, step_duration))
+}
+
 impl Graph {
-    pub fn get_query_connection<'conn, 'graph: 'conn>(&'graph self) -> QueryConn<'conn> {
+    pub fn get_query_connection<'conn, 'graph: 'conn>(&'graph self, graph_span: &'graph Option<GraphSpan>) -> QueryConn<'conn> {
         debug!(
             query = self.query,
             source = self.source,
             "Getting query connection for graph"
         );
         let mut conn = QueryConn::new(&self.source, &self.query, self.query_type.clone());
-        if let Some(span) = &self.span {
-            let duration = match duration_from_string(&span.duration) {
-                Some(d) => d,
-                None => {
-                    error!("Invalid query duration not assigning span to to graph query");
-                    return conn;
-                }
-            };
-            let step_duration = match duration_from_string(&span.step_duration) {
-                Some(d) => d,
-                None => {
-                    error!("Invalid query step resolution not assigning span to to graph query");
-                    return conn;
-                }
-            };
-            conn = conn.with_span(span.start.clone(), duration, step_duration);
+        if let Some((start, duration, step_duration)) = graph_span_to_tuple(&self.span) {
+            conn = conn.with_span(start, duration, step_duration);
+        } else if let Some((start, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+            conn = conn.with_span(start, duration, step_duration);
         }
         conn
     }
