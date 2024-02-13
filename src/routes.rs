@@ -11,10 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap};
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::Response,
     routing::get,
     Json, Router,
@@ -22,9 +22,10 @@ use axum::{
 
 // https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
-use tracing::debug;
+use tracing::{debug, error};
+use chrono::prelude::*;
 
-use crate::dashboard::{Dashboard, Graph};
+use crate::dashboard::{Dashboard, Graph, GraphSpan};
 use crate::query::{to_samples, QueryResult};
 
 type Config = State<Arc<Vec<Dashboard>>>;
@@ -32,17 +33,34 @@ type Config = State<Arc<Vec<Dashboard>>>;
 pub async fn graph_query(
     State(config): Config,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
+    Query(query): Query<HashMap<String, String>>,
 ) -> Json<QueryResult> {
     debug!("Getting data for query");
-    let dash = config
-        .get(dash_idx)
-        .expect("No such dashboard index");
-    let graph = dash.graphs
+    let dash = config.get(dash_idx).expect("No such dashboard index");
+    let graph = dash
+        .graphs
         .get(graph_idx)
         .expect(&format!("No such graph in dasboard {}", dash_idx));
+    let query_span = {
+        if query.contains_key("start") && query.contains_key("duration") && query.contains_key("step_duration")
+        {
+            if let Ok(start) = DateTime::parse_from_rfc3339(&query["start"]) {
+                Some(GraphSpan {
+                    start: start.to_utc(),
+                    duration: query["duration"].clone(),
+                    step_duration: query["step_duration"].clone(),
+                })
+            } else {
+                error!(?query, "Invalid date time in start for query string");
+                None
+            }
+        } else {
+            None
+        }
+    };
     let data = to_samples(
         graph
-            .get_query_connection(&dash.span)
+            .get_query_connection(if query_span.is_some() { &query_span } else { &dash.span })
             .get_results()
             .await
             .expect("Unable to get query results")
