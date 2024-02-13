@@ -61,10 +61,10 @@ impl<'conn> QueryConn<'conn> {
         let (end, start, step_resolution) = if let Some(TimeSpan {
             start: st,
             duration: du,
-            step_seconds: step_millis,
+            step_seconds,
         }) = self.span
         {
-            ((st + du).timestamp(), st.timestamp(), step_millis as f64)
+            ((st + du).timestamp(), st.timestamp(), step_seconds as f64)
         } else {
             let end = Utc::now().timestamp();
             let start = end - (60 * 10);
