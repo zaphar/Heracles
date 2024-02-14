@@ -18,6 +18,9 @@ class TimeseriesGraph extends HTMLElement {
     #intervalId;
     #pollSeconds;
     #label;
+    #start;
+    #duration;
+    #step_duration;
     #targetNode = null;
     constructor() {
         super();
@@ -46,6 +49,15 @@ class TimeseriesGraph extends HTMLElement {
             case 'label':
                 this.#label = newValue;
                 break;
+            case 'start':
+                this.#start = newValue;
+                break;
+            case 'duration':
+                this.#duration = newValue;
+                break;
+            case 'step-duration':
+                this.#step_duration = newValue;
+                break;
             default: // do nothing;
                 break;
         }
@@ -58,6 +70,9 @@ class TimeseriesGraph extends HTMLElement {
         this.#height = this.getAttribute('height') || this.#height;
         this.#pollSeconds = this.getAttribute('poll-seconds') || this.#pollSeconds;
         this.#label = this.getAttribute('label') || null;
+        this.#start = this.getAttribute('start') || null;
+        this.#duration = this.getAttribute('duration') || null;
+        this.#step_duration = this.getAttribute('step-duration') || null;
         this.resetInterval()
     }
 
@@ -93,8 +108,16 @@ class TimeseriesGraph extends HTMLElement {
         }
     }
 
+    getUri() {
+        if (this.#start && this.#duration && this.#step_duration) {
+            return this.#uri + "?start=" + this.#start + "&duration=" + this.#duration + "&step_duration=" + this.#step_duration;
+        } else {
+            return this.#uri;
+        }
+    }
+
     async fetchData() {
-        const response = await fetch(this.#uri);
+        const response = await fetch(this.getUri());
         const data = await response.json();
         return data;
     }
