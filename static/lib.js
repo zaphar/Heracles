@@ -84,7 +84,6 @@ class TimeseriesGraph extends HTMLElement {
     static elementName = "timeseries-graph";
 
     getTargetNode() {
-        console.log("targetNode: ", this.#targetNode);
         return this.#targetNode;
     }
 
@@ -146,7 +145,6 @@ class TimeseriesGraph extends HTMLElement {
                     x: [],
                     y: []
                 };
-                console.log("labels: ", labels, this.#label);
                 if (labels[this.#label]) {
                     trace.name = labels[this.#label];
                 };
@@ -156,13 +154,10 @@ class TimeseriesGraph extends HTMLElement {
                 }
                 traces.push(trace);
             }
-            // TODO(jwall): If this has modified the trace length or anything we should
-            // do newPlot instead.
             // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
             Plotly.react(this.getTargetNode(), traces, config, layout);
         } else if (data.Scalar) {
             // https://plotly.com/javascript/reference/bar/
-            console.log("scalar data: ", data.Scalar);
             var traces = [];
             for (const pair of data.Scalar) {
                 const series = pair[1];
@@ -172,7 +167,6 @@ class TimeseriesGraph extends HTMLElement {
                     x: [],
                     y: []
                 };
-                console.log("labels: ", labels, this.#label);
                 if (labels[this.#label]) {
                     trace.x.push(labels[this.#label]);
                 };
@@ -223,11 +217,8 @@ class SpanSelector extends HTMLElement {
 
     updateGraphs() {
         for (var node of document.getElementsByTagName(TimeseriesGraph.elementName)) {
-            console.log("endInput: ", this.#endInput.value);
             node.setAttribute('end', this.#endInput.value);
-            console.log("durationInput: ", this.#durationInput.value);
             node.setAttribute('duration', this.#durationInput.value);
-            console.log("stepDurationInput: ", this.#stepDurationInput.value);
             node.setAttribute('step-duration', this.#stepDurationInput.value);
         }
     }
