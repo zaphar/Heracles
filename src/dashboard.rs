@@ -21,7 +21,7 @@ use tracing::{debug, error};
 
 use crate::query::{QueryConn, QueryType};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct GraphSpan {
     pub end: String,
     pub duration: String,
@@ -46,8 +46,8 @@ pub struct Graph {
     pub query_type: QueryType,
 }
 
-fn duration_from_string(duration: &str) -> Option<Duration> {
-    match parse_duration::parse(duration) {
+fn duration_from_string(duration_string: &str) -> Option<Duration> {
+    match parse_duration::parse(duration_string) {
         Ok(d) => match Duration::from_std(d) {
             Ok(d) => Some(d),
             Err(e) => {
@@ -96,14 +96,18 @@ fn graph_span_to_tuple(span: &Option<GraphSpan>) -> Option<(DateTime<Utc>, Durat
 }
 
 impl Graph {
-    pub fn get_query_connection<'conn, 'graph: 'conn>(&'graph self, graph_span: &'graph Option<GraphSpan>) -> QueryConn<'conn> {
+    pub fn get_query_connection<'conn, 'graph: 'conn>(&'graph self, graph_span: &'graph Option<GraphSpan>, query_span: &'graph Option<GraphSpan>) -> QueryConn<'conn> {
         debug!(
             query = self.query,
             source = self.source,
             "Getting query connection for graph"
         );
         let mut conn = QueryConn::new(&self.source, &self.query, self.query_type.clone());
-        if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
+        // Query params take precendence over all other settings. Then graph settings take
+        // precedences and finally the dashboard settings take precendence
+        if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
+            conn = conn.with_span(end, duration, step_duration);
+        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
             conn = conn.with_span(end, duration, step_duration);
         } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
             conn = conn.with_span(end, duration, step_duration);

@@ -22,7 +22,7 @@ use axum::{
 
 // https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::dashboard::{Dashboard, Graph, GraphSpan};
 use crate::query::{to_samples, QueryResult};
@@ -57,11 +57,7 @@ pub async fn graph_query(
     };
     let data = to_samples(
         graph
-            .get_query_connection(if query_span.is_some() {
-                &query_span
-            } else {
-                &dash.span
-            })
+            .get_query_connection(&dash.span, &query_span)
             .get_results()
             .await
             .expect("Unable to get query results")

@@ -59,29 +59,36 @@ impl<'conn> QueryConn<'conn> {
         debug!("Getting results for query");
         let client = Client::try_from(self.source)?;
         let (start, end, step_resolution) = if let Some(TimeSpan {
-            end: e,
+            end,
             duration: du,
             step_seconds,
         }) = self.span
         {
-            ((e -du).timestamp(), e.timestamp(), step_seconds as f64)
+            let start = end - du; 
+            debug!(?start, ?end, step_seconds, "Running Query with range values");
+            (start.timestamp(), end.timestamp(), step_seconds as f64)
         } else {
-            let end = Utc::now().timestamp();
-            let start = end - (60 * 10);
-            (start, end, 30 as f64)
+            let end = Utc::now();
+            let start = end - chrono::Duration::minutes(10);
+            debug!(?start, ?end, step_seconds=30, "Running Query with range values");
+            (start.timestamp(), end.timestamp(), 30 as f64)
         };
-        debug!(start, end, step_resolution, "Running Query with range values");
+        //debug!(start, end, step_resolution, "Running Query with range values");
         match self.query_type {
-            QueryType::Range => Ok(client
+            QueryType::Range => {
+                let results = client
                 .query_range(self.query, start, end, step_resolution)
                 .get()
-                .await?),
+                .await?;
+                //debug!(?results, "range results");
+                Ok(results)
+            },
             QueryType::Scalar => Ok(client.query(self.query).get().await?),
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DataPoint {
     timestamp: f64,
     value: f64,

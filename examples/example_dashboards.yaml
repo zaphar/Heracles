@@ -6,15 +6,15 @@
       query: 'sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) * 100'
       query_type: Range
       span:
-        end: 2024-02-10T00:00:00.00Z
+        end: now
         duration: 1d
-        step_duration: 1min
+        step_duration: 1h
       name_label: instance
 - title: Test Dasbboard 2
   span:
     end: 2024-02-10T00:00:00.00Z
-    duration: 2d
-    step_duration: 1min
+    duration: 2 days
+    step_duration: 1 minute
   graphs:
     - title: Node cpu
       source: http://heimdall:9001
