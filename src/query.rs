@@ -28,7 +28,7 @@ pub enum QueryType {
 }
 
 pub struct TimeSpan {
-    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
     pub duration: chrono::Duration,
     pub step_seconds: i64,
 }
@@ -50,25 +50,25 @@ impl<'conn> QueryConn<'conn> {
         }
     }
 
-    pub fn with_span(mut self, start: DateTime<Utc>, duration: chrono::Duration, step: chrono::Duration) -> Self {
-        self.span = Some(TimeSpan { start, duration, step_seconds: step.num_seconds() , });
+    pub fn with_span(mut self, end: DateTime<Utc>, duration: chrono::Duration, step: chrono::Duration) -> Self {
+        self.span = Some(TimeSpan { end, duration, step_seconds: step.num_seconds() , });
         self
     }
 
     pub async fn get_results(&self) -> anyhow::Result<PromqlResult> {
         debug!("Getting results for query");
         let client = Client::try_from(self.source)?;
-        let (end, start, step_resolution) = if let Some(TimeSpan {
-            start: st,
+        let (start, end, step_resolution) = if let Some(TimeSpan {
+            end: e,
             duration: du,
             step_seconds,
         }) = self.span
         {
-            ((st + du).timestamp(), st.timestamp(), step_seconds as f64)
+            ((e -du).timestamp(), e.timestamp(), step_seconds as f64)
         } else {
             let end = Utc::now().timestamp();
             let start = end - (60 * 10);
-            (end, start, 30 as f64)
+            (start, end, 30 as f64)
         };
         debug!(start, end, step_resolution, "Running Query with range values");
         match self.query_type {

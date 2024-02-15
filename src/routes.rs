@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::{sync::Arc, collections::HashMap};
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::{Path, Query, State},
@@ -23,7 +23,6 @@ use axum::{
 // https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
 use tracing::{debug, error};
-use chrono::prelude::*;
 
 use crate::dashboard::{Dashboard, Graph, GraphSpan};
 use crate::query::{to_samples, QueryResult};
@@ -42,25 +41,27 @@ pub async fn graph_query(
         .get(graph_idx)
         .expect(&format!("No such graph in dasboard {}", dash_idx));
     let query_span = {
-        if query.contains_key("start") && query.contains_key("duration") && query.contains_key("step_duration")
+        if query.contains_key("end")
+            && query.contains_key("duration")
+            && query.contains_key("step_duration")
         {
-            if let Ok(start) = DateTime::parse_from_rfc3339(&query["start"]) {
-                Some(GraphSpan {
-                    start: start.to_utc(),
-                    duration: query["duration"].clone(),
-                    step_duration: query["step_duration"].clone(),
-                })
-            } else {
-                error!(?query, "Invalid date time in start for query string");
-                None
-            }
+            // TODO(jwall): handle the now case.
+            Some(GraphSpan {
+                end: query["end"].clone(),
+                duration: query["duration"].clone(),
+                step_duration: query["step_duration"].clone(),
+            })
         } else {
             None
         }
     };
     let data = to_samples(
         graph
-            .get_query_connection(if query_span.is_some() { &query_span } else { &dash.span })
+            .get_query_connection(if query_span.is_some() {
+                &query_span
+            } else {
+                &dash.span
+            })
             .get_results()
             .await
             .expect("Unable to get query results")
@@ -113,6 +114,7 @@ pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) 
         .collect::<Vec<(usize, &Graph)>>();
     html!(
         h1 { (dash.title) }
+        span-selector {}
         @for (idx, graph) in &graph_iter {
             (graph_component(dash_idx, *idx, *graph))
         }

@@ -23,7 +23,7 @@ use crate::query::{QueryConn, QueryType};
 
 #[derive(Deserialize)]
 pub struct GraphSpan {
-    pub start: DateTime<Utc>,
+    pub end: String,
     pub duration: String,
     pub step_duration: String,
 }
@@ -84,7 +84,15 @@ fn graph_span_to_tuple(span: &Option<GraphSpan>) -> Option<(DateTime<Utc>, Durat
             return None;
         }
     };
-    Some((span.start.clone(), duration, step_duration))
+    let end = if span.end == "now" {
+        Utc::now()
+    } else if let Ok(end) = DateTime::parse_from_rfc3339(&span.end) {
+        end.to_utc()
+    } else {
+        error!(?span.end, "Invalid DateTime using current time.");
+        Utc::now()
+    };
+    Some((end, duration, step_duration))
 }
 
 impl Graph {
@@ -95,10 +103,10 @@ impl Graph {
             "Getting query connection for graph"
         );
         let mut conn = QueryConn::new(&self.source, &self.query, self.query_type.clone());
-        if let Some((start, duration, step_duration)) = graph_span_to_tuple(&self.span) {
-            conn = conn.with_span(start, duration, step_duration);
-        } else if let Some((start, duration, step_duration)) = graph_span_to_tuple(graph_span) {
-            conn = conn.with_span(start, duration, step_duration);
+        if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
+            conn = conn.with_span(end, duration, step_duration);
+        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+            conn = conn.with_span(end, duration, step_duration);
         }
         conn
     }

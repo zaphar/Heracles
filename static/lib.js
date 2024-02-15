@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 class TimeseriesGraph extends HTMLElement {
     #uri;
     #width;
@@ -18,7 +19,7 @@ class TimeseriesGraph extends HTMLElement {
     #intervalId;
     #pollSeconds;
     #label;
-    #start;
+    #end;
     #duration;
     #step_duration;
     #targetNode = null;
@@ -30,9 +31,9 @@ class TimeseriesGraph extends HTMLElement {
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
-    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds'];
+    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration'];
 
-    attributeChanged(name, _oldValue, newValue) {
+    attributeChangedCallback(name, _oldValue, newValue) {
         switch (name) {
             case 'uri':
                 this.#uri = newValue;
@@ -49,8 +50,8 @@ class TimeseriesGraph extends HTMLElement {
             case 'label':
                 this.#label = newValue;
                 break;
-            case 'start':
-                this.#start = newValue;
+            case 'end':
+                this.#end = newValue;
                 break;
             case 'duration':
                 this.#duration = newValue;
@@ -70,7 +71,7 @@ class TimeseriesGraph extends HTMLElement {
         this.#height = this.getAttribute('height') || this.#height;
         this.#pollSeconds = this.getAttribute('poll-seconds') || this.#pollSeconds;
         this.#label = this.getAttribute('label') || null;
-        this.#start = this.getAttribute('start') || null;
+        this.#end = this.getAttribute('end') || null;
         this.#duration = this.getAttribute('duration') || null;
         this.#step_duration = this.getAttribute('step-duration') || null;
         this.resetInterval()
@@ -109,8 +110,8 @@ class TimeseriesGraph extends HTMLElement {
     }
 
     getUri() {
-        if (this.#start && this.#duration && this.#step_duration) {
-            return this.#uri + "?start=" + this.#start + "&duration=" + this.#duration + "&step_duration=" + this.#step_duration;
+        if (this.#end && this.#duration && this.#step_duration) {
+            return this.#uri + "?end=" + this.#end + "&duration=" + this.#duration + "&step_duration=" + this.#step_duration;
         } else {
             return this.#uri;
         }
@@ -155,7 +156,8 @@ class TimeseriesGraph extends HTMLElement {
                 }
                 traces.push(trace);
             }
-            console.log("Traces: ", traces);
+            // TODO(jwall): If this has modified the trace length or anything we should
+            // do newPlot instead.
             // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
             Plotly.react(this.getTargetNode(), traces, config, layout);
         } else if (data.Scalar) {
@@ -177,10 +179,66 @@ class TimeseriesGraph extends HTMLElement {
                 trace.y.push(series.value);
                 traces.push(trace);
             }
-            console.log("Traces: ", traces);
             Plotly.react(this.getTargetNode(), traces, config, layout);
         }
     }
 }
 
 TimeseriesGraph.registerElement();
+
+class SpanSelector extends HTMLElement {
+    #targetNode = null;
+    #endInput = null;
+    #durationInput = null;
+    #stepDurationInput = null;
+    #updateInput = null
+    
+    constructor() {
+        super();
+        this.#targetNode = this.appendChild(document.createElement('div'));
+        
+        this.#targetNode.appendChild(document.createElement('span')).innerText = "end: ";
+        this.#endInput = this.#targetNode.appendChild(document.createElement('input'));
+        
+        this.#targetNode.appendChild(document.createElement('span')).innerText = "duration: ";
+        this.#durationInput = this.#targetNode.appendChild(document.createElement('input'));
+        
+        this.#targetNode.appendChild(document.createElement('span')).innerText = "step duration: ";
+        this.#stepDurationInput = this.#targetNode.appendChild(document.createElement('input'));
+        
+        this.#updateInput = this.#targetNode.appendChild(document.createElement('button'));
+        this.#updateInput.innerText = "Update";
+    }
+
+    connectedCallback() {
+        const self = this;
+        self.#updateInput.onclick = function(_evt) {
+            self.updateGraphs()
+        };
+    }
+  
+    disconnectedCallback() {
+        this.#updateInput.onclick = undefined;
+    }
+
+    updateGraphs() {
+        for (var node of document.getElementsByTagName(TimeseriesGraph.elementName)) {
+            console.log("endInput: ", this.#endInput.value);
+            node.setAttribute('end', this.#endInput.value);
+            console.log("durationInput: ", this.#durationInput.value);
+            node.setAttribute('duration', this.#durationInput.value);
+            console.log("stepDurationInput: ", this.#stepDurationInput.value);
+            node.setAttribute('step-duration', this.#stepDurationInput.value);
+        }
+    }
+
+    static elementName = "span-selector";
+
+    static registerElement() {
+        if (!customElements.get(SpanSelector.elementName)) {
+            customElements.define(SpanSelector.elementName, SpanSelector);
+        }
+    }
+}
+
+SpanSelector.registerElement();
