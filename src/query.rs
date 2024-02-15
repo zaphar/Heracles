@@ -93,6 +93,23 @@ pub enum QueryResult {
     Scalar(Vec<(HashMap<String, String>, DataPoint)>),
 }
 
+impl std::fmt::Debug for QueryResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryResult::Series(v) =>  {
+                f.write_fmt(format_args!("Series trace count = {}", v.len()))?;
+                for (idx, (tags, trace)) in v.iter().enumerate() {
+                    f.write_fmt(format_args!("; {}: meta {:?} datapoint count = {};", idx, tags, trace.len()))?;
+                }
+            }
+            QueryResult::Scalar(v) => {
+                f.write_fmt(format_args!("{} traces", v.len()))?;
+            }
+        }
+        Ok(())
+    }
+}
+
 pub fn to_samples(data: Data) -> QueryResult {
     match data {
         Data::Matrix(mut range) => QueryResult::Series(
