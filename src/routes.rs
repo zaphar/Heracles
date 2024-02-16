@@ -82,7 +82,11 @@ pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Mark
     html!(
         div {
             h2 { (graph.title) }
-            timeseries-graph uri=(graph_data_uri) id=(graph_id) label=(graph.name_label) { }
+            @if graph.d3_tick_format.is_some() { 
+                timeseries-graph uri=(graph_data_uri) id=(graph_id) label=(graph.name_label) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
+            } @else {
+                timeseries-graph uri=(graph_data_uri) id=(graph_id) label=(graph.name_label) { }
+            }
         }
     )
 }

@@ -3,12 +3,12 @@
   graphs:
     - title: Node cpu
       source: http://heimdall:9001
-      query: 'sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) * 100'
+      query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))'
       query_type: Range
       span:
         end: now
         duration: 1d
-        step_duration: 1h
+        step_duration: 10min
       name_label: instance
 - title: Test Dasbboard 2
   span:
@@ -16,9 +16,11 @@
     duration: 2 days
     step_duration: 1 minute
   graphs:
-    - title: Node cpu
+    - title: Node cpu sytem percent
       source: http://heimdall:9001
-      query: 'sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) * 100'
+      query: |
+        sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
+      d3_tick_format: "~%"
       query_type: Range
       name_label: instance
     - title: Node memory

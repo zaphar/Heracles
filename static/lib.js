@@ -22,6 +22,7 @@ class TimeseriesGraph extends HTMLElement {
     #end;
     #duration;
     #step_duration;
+    #d3TickFormat = "~s";
     #targetNode = null;
     constructor() {
         super();
@@ -31,7 +32,7 @@ class TimeseriesGraph extends HTMLElement {
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
-    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration'];
+    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'd3-tick-format'];
 
     attributeChangedCallback(name, _oldValue, newValue) {
         switch (name) {
@@ -59,6 +60,9 @@ class TimeseriesGraph extends HTMLElement {
             case 'step-duration':
                 this.#step_duration = newValue;
                 break;
+            case 'd3-tick-format':
+                this.#d3TickFormat = newValue;
+                break;
             default: // do nothing;
                 break;
         }
@@ -74,6 +78,7 @@ class TimeseriesGraph extends HTMLElement {
         this.#end = this.getAttribute('end') || null;
         this.#duration = this.getAttribute('duration') || null;
         this.#step_duration = this.getAttribute('step-duration') || null;
+        this.#d3TickFormat = this.getAttribute('d3-tick-format') || this.#d3TickFormat;
         this.resetInterval()
     }
 
@@ -131,8 +136,15 @@ class TimeseriesGraph extends HTMLElement {
         };
         const layout = {
             displayModeBar: false,
-            responsive: true
+            responsive: true,
+            yaxis: {
+                tickformat: this.#d3TickFormat,
+                //showticksuffix: 'all',
+                //ticksuffix: '%',
+                //exponentFormat: 'SI'
+            }
         };
+        console.debug("layout", layout);
         if (data.Series) {
             // https://plotly.com/javascript/reference/scatter/
             var traces = [];
@@ -155,7 +167,7 @@ class TimeseriesGraph extends HTMLElement {
                 traces.push(trace);
             }
             // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
-            Plotly.react(this.getTargetNode(), traces, config, layout);
+            Plotly.react(this.getTargetNode(), traces, layout, config);
         } else if (data.Scalar) {
             // https://plotly.com/javascript/reference/bar/
             var traces = [];
@@ -173,7 +185,7 @@ class TimeseriesGraph extends HTMLElement {
                 trace.y.push(series.value);
                 traces.push(trace);
             }
-            Plotly.react(this.getTargetNode(), traces, config, layout);
+            Plotly.react(this.getTargetNode(), traces, layout, config);
         }
     }
 }

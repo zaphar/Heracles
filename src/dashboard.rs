@@ -44,6 +44,7 @@ pub struct Graph {
     pub span: Option<GraphSpan>,
     pub name_label: String,
     pub query_type: QueryType,
+    pub d3_tick_format: Option<String>,
 }
 
 fn duration_from_string(duration_string: &str) -> Option<Duration> {
