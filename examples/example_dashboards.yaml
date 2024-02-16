@@ -2,29 +2,45 @@
 - title: Test Dasbboard 1
   graphs:
     - title: Node cpu
-      source: http://heimdall:9001
-      query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))'
+      d3_tick_format: "~s"
+      plots:
+        - source: http://heimdall:9001
+          query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))'
+          meta:
+            name_label: instance
       query_type: Range
       span:
         end: now
         duration: 1d
         step_duration: 10min
-      name_label: instance
 - title: Test Dasbboard 2
   span:
     end: 2024-02-10T00:00:00.00Z
     duration: 2 days
     step_duration: 1 minute
   graphs:
-    - title: Node cpu sytem percent
-      source: http://heimdall:9001
-      query: |
-        sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
+    - title: Node cpu percent
       d3_tick_format: "~%"
       query_type: Range
-      name_label: instance
+      plots:
+        - source: http://heimdall:9001
+          query: |
+            sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
+          meta:
+            d3_tick_format: "~s"
+            name_label: instance
+            name_prefix: "System"
+        - source: http://heimdall:9001
+          query: |
+            sum by (instance)(irate(node_cpu_seconds_total{mode="user",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
+          meta:
+            #d3_tick_format: "~s"
+            name_label: instance
+            name_suffix: "User"
     - title: Node memory
-      source: http://heimdall:9001
-      query: 'node_memory_MemFree_bytes{job="nodestats"}'
       query_type: Scalar
-      name_label: instance
+      plots:
+        - source: http://heimdall:9001
+          query: 'node_memory_MemFree_bytes{job="nodestats"}'
+          meta:
+            name_label: instance

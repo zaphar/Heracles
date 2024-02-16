@@ -18,7 +18,6 @@ class TimeseriesGraph extends HTMLElement {
     #height;
     #intervalId;
     #pollSeconds;
-    #label;
     #end;
     #duration;
     #step_duration;
@@ -32,7 +31,7 @@ class TimeseriesGraph extends HTMLElement {
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
-    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'd3-tick-format'];
+    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration'];
 
     attributeChangedCallback(name, _oldValue, newValue) {
         switch (name) {
@@ -47,9 +46,6 @@ class TimeseriesGraph extends HTMLElement {
                 break;
             case 'poll-seconds':
                 this.#pollSeconds = newValue;
-                break;
-            case 'label':
-                this.#label = newValue;
                 break;
             case 'end':
                 this.#end = newValue;
@@ -74,7 +70,6 @@ class TimeseriesGraph extends HTMLElement {
         this.#width = this.getAttribute('width') || this.#width;
         this.#height = this.getAttribute('height') || this.#height;
         this.#pollSeconds = this.getAttribute('poll-seconds') || this.#pollSeconds;
-        this.#label = this.getAttribute('label') || null;
         this.#end = this.getAttribute('end') || null;
         this.#duration = this.getAttribute('duration') || null;
         this.#step_duration = this.getAttribute('step-duration') || null;
@@ -134,62 +129,81 @@ class TimeseriesGraph extends HTMLElement {
                 orientation: 'h'
             }
         };
-        const layout = {
+        var layout = {
             displayModeBar: false,
             responsive: true,
-            yaxis: {
-                tickformat: this.#d3TickFormat,
-                //showticksuffix: 'all',
-                //ticksuffix: '%',
-                //exponentFormat: 'SI'
-            }
         };
-        console.debug("layout", layout);
-        if (data.Series) {
-            // https://plotly.com/javascript/reference/scatter/
-            var traces = [];
-            for (const pair of data.Series) {
-                const series = pair[1];
-                const labels = pair[0];
-                var trace = {
-                    type: "scatter",
-                    mode: "lines+text",
-                    x: [],
-                    y: []
-                };
-                if (labels[this.#label]) {
-                    trace.name = labels[this.#label];
-                };
-                for (const point of series) {
-                    trace.x.push(new Date(point.timestamp * 1000));
-                    trace.y.push(point.value);
+        var traces = [];
+        for (var subplot_idx in data) {
+            const subplot = data[subplot_idx];
+            const subplotCount = Number(subplot_idx) + 1;
+            const yaxis = "y" + subplotCount
+            if (subplot.Series) {
+                // https://plotly.com/javascript/reference/scatter/
+                for (const triple of subplot.Series) {
+                    const labels = triple[0];
+                    const meta = triple[1];
+                    layout["yaxis" + subplotCount] = {
+                        anchor: yaxis,
+                        tickformat: meta["d3_tick_format"] || this.#d3TickFormat
+                    };
+                    const series = triple[2];
+                    var trace = {
+                        type: "scatter",
+                        mode: "lines+text",
+                        x: [],
+                        y: [],
+                        yaxis: yaxis,
+                        yhoverformat: meta["d3_tick_format"],
+                    };
+                    const namePrefix = meta["name_prefix"];
+                    const nameSuffix = meta["name_suffix"];
+                    const nameLabel = meta["name_label"];
+                    var name = "";
+                    if (namePrefix) {
+                        name = namePrefix + "-";
+                    };
+                    if (nameLabel && labels[nameLabel]) {
+                        name = name + labels[nameLabel];
+                    };
+                    if (nameSuffix) {
+                        name = name + " - " + nameSuffix;
+                    };
+                    if (name) { trace.name = name; }
+                    for (const point of series) {
+                        trace.x.push(new Date(point.timestamp * 1000));
+                        trace.y.push(point.value);
+                    }
+                    traces.push(trace);
                 }
-                traces.push(trace);
+            } else if (subplot.Scalar) {
+                // https://plotly.com/javascript/reference/bar/
+                for (const triple of subplot.Scalar) {
+                    const labels = triple[0];
+                    const meta = triple[1];
+                    const series = triple[2];
+                    var trace = {
+                        type: "bar",
+                        x: [],
+                        y: [],
+                        yaxis: yaxis,
+                        yhoverformat: meta["d3_tick_format"],
+                    };
+                    let nameLabel = meta["name_label"];
+                    if (nameLabel && labels[nameLabel]) {
+                        trace.name = labels[nameLabel];
+                    };
+                    if (nameLabel && labels[nameLabel]) {
+                        trace.x.push(labels[nameLabel]);
+                    };
+                    trace.y.push(series.value);
+                    traces.push(trace);
+                }
             }
-            // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
-            Plotly.react(this.getTargetNode(), traces, layout, config);
-        } else if (data.Scalar) {
-            // https://plotly.com/javascript/reference/bar/
-            var traces = [];
-            for (const pair of data.Scalar) {
-                const series = pair[1];
-                const labels = pair[0];
-                var trace = {
-                    type: "bar",
-                    x: [],
-                    y: []
-                };
-                if (labels[this.#label]) {
-                    trace.name = labels[this.#label];
-                };
-                if (labels[this.#label]) {
-                    trace.x.push(labels[this.#label]);
-                };
-                trace.y.push(series.value);
-                traces.push(trace);
-            }
-            Plotly.react(this.getTargetNode(), traces, layout, config);
         }
+        console.debug("traces: ", traces);
+        // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
+        Plotly.react(this.getTargetNode(), traces, layout, config);
     }
 }
 
@@ -201,20 +215,20 @@ class SpanSelector extends HTMLElement {
     #durationInput = null;
     #stepDurationInput = null;
     #updateInput = null
-    
+
     constructor() {
         super();
         this.#targetNode = this.appendChild(document.createElement('div'));
-        
+
         this.#targetNode.appendChild(document.createElement('span')).innerText = "end: ";
         this.#endInput = this.#targetNode.appendChild(document.createElement('input'));
-        
+
         this.#targetNode.appendChild(document.createElement('span')).innerText = "duration: ";
         this.#durationInput = this.#targetNode.appendChild(document.createElement('input'));
-        
+
         this.#targetNode.appendChild(document.createElement('span')).innerText = "step duration: ";
         this.#stepDurationInput = this.#targetNode.appendChild(document.createElement('input'));
-        
+
         this.#updateInput = this.#targetNode.appendChild(document.createElement('button'));
         this.#updateInput.innerText = "Update";
     }
@@ -225,7 +239,7 @@ class SpanSelector extends HTMLElement {
             self.updateGraphs()
         };
     }
-  
+
     disconnectedCallback() {
         this.#updateInput.onclick = undefined;
     }

@@ -33,7 +33,7 @@ pub async fn graph_query(
     State(config): Config,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
-) -> Json<QueryResult> {
+) -> Json<Vec<QueryResult>> {
     debug!("Getting data for query");
     let dash = config.get(dash_idx).expect("No such dashboard index");
     let graph = dash
@@ -45,7 +45,6 @@ pub async fn graph_query(
             && query.contains_key("duration")
             && query.contains_key("step_duration")
         {
-            // TODO(jwall): handle the now case.
             Some(GraphSpan {
                 end: query["end"].clone(),
                 duration: query["duration"].clone(),
@@ -55,21 +54,23 @@ pub async fn graph_query(
             None
         }
     };
-    let data = to_samples(
-        graph
-            .get_query_connection(&dash.span, &query_span)
-            .get_results()
-            .await
-            .expect("Unable to get query results")
-            .data()
-            .clone(),
-    );
+    let connections = graph.get_query_connections(&dash.span, &query_span);
+    let mut data = Vec::new();
+    for conn in connections {
+        data.push(to_samples(
+            conn.get_results()
+                .await
+                .expect("Unable to get query results")
+                .data()
+                .clone(),
+            conn.meta,
+        ));
+    }
     Json(data)
 }
 
 pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     // Query routes
-    // TODO(zaphar): Allow passing the timespan in via query
     Router::new().route(
         "/dash/:dash_idx/graph/:graph_idx",
         get(graph_query).with_state(config),
@@ -83,9 +84,9 @@ pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Mark
         div {
             h2 { (graph.title) }
             @if graph.d3_tick_format.is_some() { 
-                timeseries-graph uri=(graph_data_uri) id=(graph_id) label=(graph.name_label) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
+                timeseries-graph uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
             } @else {
-                timeseries-graph uri=(graph_data_uri) id=(graph_id) label=(graph.name_label) { }
+                timeseries-graph uri=(graph_data_uri) id=(graph_id) { }
             }
         }
     )

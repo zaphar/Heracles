@@ -19,10 +19,11 @@ use serde::Deserialize;
 use serde_yaml;
 use tracing::{debug, error};
 
-use crate::query::{QueryConn, QueryType};
+use crate::query::{QueryConn, QueryType, PlotMeta};
 
 #[derive(Deserialize, Debug)]
 pub struct GraphSpan {
+    // serialized with https://datatracker.ietf.org/doc/html/rfc3339 and special handling for 'now'
     pub end: String,
     pub duration: String,
     pub step_duration: String,
@@ -32,17 +33,21 @@ pub struct GraphSpan {
 pub struct Dashboard {
     pub title: String,
     pub graphs: Vec<Graph>,
-    pub span: Option<GraphSpan>
+    pub span: Option<GraphSpan>,
+}
+
+#[derive(Deserialize)]
+pub struct SubPlot {
+    pub source: String,
+    pub query: String,
+    pub meta: PlotMeta,
 }
 
 #[derive(Deserialize)]
 pub struct Graph {
     pub title: String,
-    pub source: String,
-    pub query: String,
-    // serialized with https://datatracker.ietf.org/doc/html/rfc3339
+    pub plots: Vec<SubPlot>,
     pub span: Option<GraphSpan>,
-    pub name_label: String,
     pub query_type: QueryType,
     pub d3_tick_format: Option<String>,
 }
@@ -97,23 +102,31 @@ fn graph_span_to_tuple(span: &Option<GraphSpan>) -> Option<(DateTime<Utc>, Durat
 }
 
 impl Graph {
-    pub fn get_query_connection<'conn, 'graph: 'conn>(&'graph self, graph_span: &'graph Option<GraphSpan>, query_span: &'graph Option<GraphSpan>) -> QueryConn<'conn> {
-        debug!(
-            query = self.query,
-            source = self.source,
-            "Getting query connection for graph"
-        );
-        let mut conn = QueryConn::new(&self.source, &self.query, self.query_type.clone());
-        // Query params take precendence over all other settings. Then graph settings take
-        // precedences and finally the dashboard settings take precendence
-        if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
-            conn = conn.with_span(end, duration, step_duration);
-        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
-            conn = conn.with_span(end, duration, step_duration);
-        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
-            conn = conn.with_span(end, duration, step_duration);
+    pub fn get_query_connections<'conn, 'graph: 'conn>(
+        &'graph self,
+        graph_span: &'graph Option<GraphSpan>,
+        query_span: &'graph Option<GraphSpan>,
+    ) -> Vec<QueryConn<'conn>> {
+        let mut conns = Vec::new();
+        for plot in self.plots.iter() {
+            debug!(
+                query = plot.query,
+                source = plot.source,
+                "Getting query connection for graph"
+            );
+            let mut conn = QueryConn::new(&plot.source, &plot.query, self.query_type.clone(), plot.meta.clone());
+            // Query params take precendence over all other settings. Then graph settings take
+            // precedences and finally the dashboard settings take precendence
+            if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
+                conn = conn.with_span(end, duration, step_duration);
+            } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
+                conn = conn.with_span(end, duration, step_duration);
+            } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+                conn = conn.with_span(end, duration, step_duration);
+            }
+            conns.push(conn);
         }
-        conn
+        conns
     }
 }
 

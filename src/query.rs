@@ -38,20 +38,31 @@ pub struct QueryConn<'conn> {
     query: &'conn str,
     span: Option<TimeSpan>,
     query_type: QueryType,
+    pub meta: PlotMeta,
 }
 
 impl<'conn> QueryConn<'conn> {
-    pub fn new<'a: 'conn>(source: &'a str, query: &'a str, query_type: QueryType) -> Self {
+    pub fn new<'a: 'conn>(source: &'a str, query: &'a str, query_type: QueryType, meta: PlotMeta) -> Self {
         Self {
             source,
             query,
             query_type,
+            meta,
             span: None,
         }
     }
 
-    pub fn with_span(mut self, end: DateTime<Utc>, duration: chrono::Duration, step: chrono::Duration) -> Self {
-        self.span = Some(TimeSpan { end, duration, step_seconds: step.num_seconds() , });
+    pub fn with_span(
+        mut self,
+        end: DateTime<Utc>,
+        duration: chrono::Duration,
+        step: chrono::Duration,
+    ) -> Self {
+        self.span = Some(TimeSpan {
+            end,
+            duration,
+            step_seconds: step.num_seconds(),
+        });
         self
     }
 
@@ -64,25 +75,35 @@ impl<'conn> QueryConn<'conn> {
             step_seconds,
         }) = self.span
         {
-            let start = end - du; 
-            debug!(?start, ?end, step_seconds, "Running Query with range values");
+            let start = end - du;
+            debug!(
+                ?start,
+                ?end,
+                step_seconds,
+                "Running Query with range values"
+            );
             (start.timestamp(), end.timestamp(), step_seconds as f64)
         } else {
             let end = Utc::now();
             let start = end - chrono::Duration::minutes(10);
-            debug!(?start, ?end, step_seconds=30, "Running Query with range values");
+            debug!(
+                ?start,
+                ?end,
+                step_seconds = 30,
+                "Running Query with range values"
+            );
             (start.timestamp(), end.timestamp(), 30 as f64)
         };
         //debug!(start, end, step_resolution, "Running Query with range values");
         match self.query_type {
             QueryType::Range => {
                 let results = client
-                .query_range(self.query, start, end, step_resolution)
-                .get()
-                .await?;
+                    .query_range(self.query, start, end, step_resolution)
+                    .get()
+                    .await?;
                 //debug!(?results, "range results");
                 Ok(results)
-            },
+            }
             QueryType::Scalar => Ok(client.query(self.query).get().await?),
         }
     }
@@ -94,19 +115,33 @@ pub struct DataPoint {
     value: f64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PlotMeta {
+    name_prefix: Option<String>,
+    name_suffix: Option<String>,
+    name_label: Option<String>,
+    d3_tick_format: Option<String>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub enum QueryResult {
-    Series(Vec<(HashMap<String, String>, Vec<DataPoint>)>),
-    Scalar(Vec<(HashMap<String, String>, DataPoint)>),
+    Series(Vec<(HashMap<String, String>, PlotMeta, Vec<DataPoint>)>),
+    Scalar(Vec<(HashMap<String, String>, PlotMeta, DataPoint)>),
 }
 
 impl std::fmt::Debug for QueryResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            QueryResult::Series(v) =>  {
+            QueryResult::Series(v) => {
                 f.write_fmt(format_args!("Series trace count = {}", v.len()))?;
-                for (idx, (tags, trace)) in v.iter().enumerate() {
-                    f.write_fmt(format_args!("; {}: meta {:?} datapoint count = {};", idx, tags, trace.len()))?;
+                for (idx, (tags, meta, trace)) in v.iter().enumerate() {
+                    f.write_fmt(format_args!(
+                        "; {}: tags {:?} meta: {:?} datapoint count = {};",
+                        idx,
+                        tags,
+                        meta,
+                        trace.len()
+                    ))?;
                 }
             }
             QueryResult::Scalar(v) => {
@@ -117,7 +152,7 @@ impl std::fmt::Debug for QueryResult {
     }
 }
 
-pub fn to_samples(data: Data) -> QueryResult {
+pub fn to_samples(data: Data, meta: PlotMeta) -> QueryResult {
     match data {
         Data::Matrix(mut range) => QueryResult::Series(
             range
@@ -126,6 +161,7 @@ pub fn to_samples(data: Data) -> QueryResult {
                     let (metric, mut samples) = rv.into_inner();
                     (
                         metric,
+                        meta.clone(),
                         samples
                             .drain(0..)
                             .map(|s| DataPoint {
@@ -144,6 +180,7 @@ pub fn to_samples(data: Data) -> QueryResult {
                     let (metric, sample) = iv.into_inner();
                     (
                         metric,
+                        meta.clone(),
                         DataPoint {
                             timestamp: sample.timestamp(),
                             value: sample.value(),
@@ -154,6 +191,7 @@ pub fn to_samples(data: Data) -> QueryResult {
         ),
         Data::Scalar(sample) => QueryResult::Scalar(vec![(
             HashMap::new(),
+            meta.clone(),
             DataPoint {
                 timestamp: sample.timestamp(),
                 value: sample.value(),
