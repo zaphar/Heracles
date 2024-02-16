@@ -180,6 +180,9 @@ class TimeseriesGraph extends HTMLElement {
                     y: []
                 };
                 if (labels[this.#label]) {
+                    trace.name = labels[this.#label];
+                };
+                if (labels[this.#label]) {
                     trace.x.push(labels[this.#label]);
                 };
                 trace.y.push(series.value);
