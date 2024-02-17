@@ -1,20 +1,24 @@
----
+--- # A list of dashboards
 - title: Test Dasbboard 1
-  graphs:
-    - title: Node cpu
-      d3_tick_format: "~s"
-      plots:
-        - source: http://heimdall:9001
-          query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))'
-          meta:
-            name_label: instance
-      query_type: Range
-      span:
-        end: now
-        duration: 1d
-        step_duration: 10min
+  graphs: # Each Dashboard can have 1 or more graphs in it.
+    - title: Node cpu # Graphs have titles
+      query_type: Range # The type of graph. Range for timeseries and Scalar for point in time
+      d3_tick_format: "~s" # Default tick format for the graph y axis
+      plots: # List of pluts to show on the graph
+        - source: http://heimdall:9001 # Prometheus source uri for this plot
+          query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))' # The PromQL query for this plot
+          meta: # metadata for this plot
+            name_label: instance # Grab a trace name from the query tags 
+            #d3_tick_format: "~%" # d3 tick format override for this plot's yaxis
+            #name_prefix: "Prefix" # A prefix for this sublots trace names
+            #name_suffix: "Suffix" # A suffix for this subplots trace names
+            #named_axis: "y" # yaxis name to use for this subplots traces
+      span: # The span for this range query
+        end: now # Where the span ends. RFC3339 format with special handling for the now keyword
+        duration: 1d # duration of the span. Uses SI formatting for duration amounts.
+        step_duration: 10min # step size for the duration amounts.
 - title: Test Dasbboard 2
-  span:
+  span: # Dashboards can have default spans that get used if there is no override for the graph
     end: 2024-02-10T00:00:00.00Z
     duration: 2 days
     step_duration: 1 minute
@@ -27,16 +31,18 @@
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
           meta:
-            d3_tick_format: "~s"
+            d3_tick_format: "~%"
             name_label: instance
             name_prefix: "System"
+            named_axis: "y"
         - source: http://heimdall:9001
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{mode="user",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
           meta:
-            #d3_tick_format: "~s"
+            d3_tick_format: "~%"
             name_label: instance
             name_suffix: "User"
+            named_axis: "y"
     - title: Node memory
       query_type: Scalar
       plots:
