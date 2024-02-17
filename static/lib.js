@@ -137,12 +137,14 @@ class TimeseriesGraph extends HTMLElement {
         for (var subplot_idx in data) {
             const subplot = data[subplot_idx];
             const subplotCount = Number(subplot_idx) + 1;
-            const yaxis = "y" + subplotCount
+            const default_yaxis = "y" + subplotCount
             if (subplot.Series) {
                 // https://plotly.com/javascript/reference/scatter/
                 for (const triple of subplot.Series) {
                     const labels = triple[0];
                     const meta = triple[1];
+                    const yaxis = meta["named_axis"] || default_yaxis;
+                    // https://plotly.com/javascript/reference/layout/yaxis/
                     layout["yaxis" + subplotCount] = {
                         anchor: yaxis,
                         tickformat: meta["d3_tick_format"] || this.#d3TickFormat
@@ -153,6 +155,8 @@ class TimeseriesGraph extends HTMLElement {
                         mode: "lines+text",
                         x: [],
                         y: [],
+                        // We always share the x axis for timeseries graphs.
+                        xaxis: "x",
                         yaxis: yaxis,
                         yhoverformat: meta["d3_tick_format"],
                     };
@@ -201,7 +205,6 @@ class TimeseriesGraph extends HTMLElement {
                 }
             }
         }
-        console.debug("traces: ", traces);
         // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
         Plotly.react(this.getTargetNode(), traces, layout, config);
     }
