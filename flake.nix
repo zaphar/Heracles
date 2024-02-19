@@ -45,6 +45,7 @@
       };
     in {
       packages.default = heracles;
+      formatter = pkgs.alejandra;
     })
     // {
       nixosModule = {
