@@ -25,6 +25,7 @@
           name = "heracles";
           verion = "0.0.1";
           src = ./.;
+          nativeBuildInputs = [ pkgs.pkg-config ];
           buildInputs = (
             if pkgs.stdenv.isDarwin then
               with pkgs.darwin.apple_sdk.frameworks; [ Security SystemConfiguration ]
