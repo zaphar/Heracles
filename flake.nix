@@ -112,11 +112,9 @@
 
         config = let
           cfg = config.services.heracles;
+          cfgFile = pkgs.writeText "heracles.yaml" (builtins.toJSON cfg.settings);
         in
           lib.mkIf cfg.enable {
-            environment.etc."heracles.yaml" = {
-              text = lib.generators.toYAML {} cfg.settings;
-            };
             systemd.services.heracles = {
               wantedBy = ["multi-user.target" "default.target"];
               wants = ["network.target"];
@@ -124,7 +122,7 @@
               serviceConfig = {
                 Restart = "on-failure";
                 RestartSec = "30s";
-                ExecStart = "${pkgs.heracles}/bin/heracles --listen ${cfg.listen} --config=${config.environment.etc."heracles.yaml".target}";
+                ExecStart = "${pkgs.heracles}/bin/heracles --listen ${cfg.listen} --config=${cfgFile}";
               };
             };
           };
