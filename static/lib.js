@@ -188,17 +188,22 @@ class TimeseriesGraph extends HTMLElement {
                         type: "bar",
                         x: [],
                         y: [],
-                        yaxis: yaxis,
                         yhoverformat: meta["d3_tick_format"],
                     };
-                    let nameLabel = meta["name_label"];
-                    if (nameLabel && labels[nameLabel]) {
-                        trace.name = labels[nameLabel];
-                    };
-                    if (nameLabel && labels[nameLabel]) {
-                        trace.x.push(labels[nameLabel]);
-                    };
+                    const formatter = meta.name_format;
+                    var name = "";
+                    if (formatter) {
+                        name = eval(formatter);
+                    } else {
+                        var names = [];
+                        for (const value of labels) {
+                            names.push(value);
+                        }
+                        name = names.join(" ");
+                    }
+                    if (name) { trace.name = name; }
                     trace.y.push(series.value);
+                    trace.x.push(trace.name);
                     traces.push(trace);
                 }
             }
