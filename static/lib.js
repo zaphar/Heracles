@@ -160,19 +160,17 @@ class TimeseriesGraph extends HTMLElement {
                         yaxis: yaxis,
                         yhoverformat: meta["d3_tick_format"],
                     };
-                    const namePrefix = meta["name_prefix"];
-                    const nameSuffix = meta["name_suffix"];
-                    const nameLabel = meta["name_label"];
                     var name = "";
-                    if (namePrefix) {
-                        name = namePrefix + "-";
-                    };
-                    if (nameLabel && labels[nameLabel]) {
-                        name = name + labels[nameLabel];
-                    };
-                    if (nameSuffix) {
-                        name = name + " - " + nameSuffix;
-                    };
+                    const formatter = meta.name_format
+                    if (formatter) {
+                        name = eval(formatter);
+                    } else {
+                        var names = [];
+                        for (const value of labels) {
+                            names.push(value);
+                        }
+                        name = names.join(" ");
+                    }
                     if (name) { trace.name = name; }
                     for (const point of series) {
                         trace.x.push(new Date(point.timestamp * 1000));

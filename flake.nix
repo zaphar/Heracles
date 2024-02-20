@@ -63,9 +63,7 @@
                                                 sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
                                             '';
                                             meta = {
-                                                name_label = "instance";
-                                                name_prefix = "trace name prefix";
-                                                name_suffix = "trace name suffix";
+                                                name_function = "`\${labels.instance}`";
                                                 named_axis = "y";
                                                 # yaxis formatting for this subplot
                                                 d3_tick_format = "~s";

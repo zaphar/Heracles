@@ -8,10 +8,8 @@
         - source: http://heimdall:9001 # Prometheus source uri for this plot
           query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))' # The PromQL query for this plot
           meta: # metadata for this plot
-            name_label: instance # Grab a trace name from the query tags 
+            name_format: "`${labels.instance}`" # javascript template literal to format the trace name
             #d3_tick_format: "~%" # d3 tick format override for this plot's yaxis
-            #name_prefix: "Prefix" # A prefix for this sublots trace names
-            #name_suffix: "Suffix" # A suffix for this subplots trace names
             #named_axis: "y" # yaxis name to use for this subplots traces
       span: # The span for this range query
         end: now # Where the span ends. RFC3339 format with special handling for the now keyword
@@ -32,16 +30,14 @@
             sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
           meta:
             d3_tick_format: "~%"
-            name_label: instance
-            name_prefix: "System"
+            name_format: "`${labels.instance} system`"
             named_axis: "y"
         - source: http://heimdall:9001
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{mode="user",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
           meta:
             d3_tick_format: "~%"
-            name_label: instance
-            name_suffix: "User"
+            name_format: "`${labels.instance} user`"
             named_axis: "y"
     - title: Node memory
       query_type: Scalar
@@ -49,4 +45,4 @@
         - source: http://heimdall:9001
           query: 'node_memory_MemFree_bytes{job="nodestats"}'
           meta:
-            name_label: instance
+            name_format: "`${labels.instance}`"

@@ -117,9 +117,7 @@ pub struct DataPoint {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlotMeta {
-    name_prefix: Option<String>,
-    name_suffix: Option<String>,
-    name_label: Option<String>,
+    name_format: Option<String>,
     named_axis: Option<String>,
     d3_tick_format: Option<String>,
 }
