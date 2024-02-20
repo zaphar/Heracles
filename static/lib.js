@@ -181,6 +181,7 @@ class TimeseriesGraph extends HTMLElement {
         for (var opt of this.#filterLabels[key]) {
             const optElement = document.createElement("option");
             optElement.setAttribute("value", opt);
+            optElement.setAttribute("selected", true);
             optElement.innerText = opt;
             select.appendChild(optElement);
         }
