@@ -48,23 +48,26 @@
       formatter = pkgs.alejandra;
     })
     // {
-      nixosModule = {
+      nixosModules.default = {
         config,
         pkgs,
         lib,
-      }:
-        with lib; {
-          options = {
-            services.heracles.enable = mkEnableOption "enable heracles service";
-            services.heracles.listen = mkOption {
-              description = "[host]:port address for heracles to listen on";
-              default = "localhost:8080";
-              defaultText = "localhost:8080";
-            };
+      }: {
+        options = {
+          services.heracles.enable = lib.mkEnableOption "enable heracles service";
+          services.heracles.listen = lib.mkOption {
+            description = "[host]:port address for heracles to listen on";
+            default = "localhost:8080";
+            defaultText = "localhost:8080";
+            type = lib.types.string;
+          };
 
-            services.heracles.settings = mkOption {
-              description = "heracles dashboard Configuration";
-              default = [
+          services.heracles.settings = lib.mkOption {
+            description = "heracles dashboard Configuration";
+            type = lib.types.listOf lib.types.attrs;
+            default = [];
+            defaultText = lib.literalExpression ''
+              [
                 {
                   title = "A dashboard";
                   graphs = [
@@ -76,11 +79,11 @@
                       plots = [
                         {
                           source = "http://heimdall:9001";
-                          query = ''
+                          query = \'\'
                             sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
-                          '';
+                          \'\';
                           meta = {
-                            name_function = "`\${labels.instance}`";
+                            name_function = "''${labels.instance}";
                             named_axis = "y";
                             # yaxis formatting for this subplot
                             d3_tick_format = "~s";
@@ -102,56 +105,17 @@
                     step_duration = "10min";
                   };
                 }
-              ];
-              defaultText = ''
-                [
-                    {
-                        title = "A dashboard";
-                        graphs = [
-                            {
-                                title = "Graph title";
-                                query_type = "Range";
-                                # yaxis formatting default for this graph
-                                d3_tick_format = "~s";
-                                plots = [
-                                    {
-                                        source = "http://heimdall:9001";
-                                        query = \'\'
-                                            sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
-                                        \'\';
-                                        meta = {
-                                            name_label = "instance";
-                                            name_prefix = "trace name prefix";
-                                            name_suffix = "trace name suffix";
-                                            named_axis = "y";
-                                            # yaxis formatting for this subplot
-                                            d3_tick_format = "~s";
-                                        };
-                                    }
-                                ];
-                                # span for this graph.
-                                span = {
-                                    end = "now";
-                                    duration = "1d";
-                                    step_duration = "10min";
-                                };
-                            }
-                        ];
-                        # default span for dashboard
-                        span = {
-                            end = "now";
-                            duration = "1d";
-                            step_duration = "10min";
-                        };
-                    }
-                ]
-              '';
-            };
+              ]
+            '';
           };
+        };
 
-          config = mkIf config.services.heracles.enable {
+        config = let
+          cfg = config.services.heracles;
+        in
+          lib.mkIf cfg.enable {
             environment.etc."heracles.yaml" = {
-              text = generators.toYAML {} config.services.heracles.settings;
+              text = lib.generators.toYAML {} cfg.settings;
             };
             systemd.services.heracles = {
               wantedBy = ["multi-user.target" "default.target"];
@@ -160,10 +124,10 @@
               serviceConfig = {
                 Restart = "on-failure";
                 RestartSec = "30s";
-                ExecStart = "${pkgs.heracles}/bin/heracles --listen ${config.services.heracles.listen} --config=${config.environment.etc."heracles.yaml".target}";
+                ExecStart = "${pkgs.heracles}/bin/heracles --listen ${cfg.listen} --config=${config.environment.etc."heracles.yaml".target}";
               };
             };
           };
-        };
+      };
     };
 }
