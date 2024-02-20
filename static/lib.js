@@ -122,6 +122,21 @@ class TimeseriesGraph extends HTMLElement {
         return data;
     }
 
+    formatName(meta, labels) {
+      var name = "";
+      const formatter = meta.name_format
+      if (formatter) {
+          name = eval(formatter);
+      } else {
+          var names = [];
+          for (const value of labels) {
+              names.push(value);
+          }
+          name = names.join(" ");
+      }
+      return name;
+    }
+
     async updateGraph() {
         const data = await this.fetchData();
         const config = {
@@ -160,17 +175,7 @@ class TimeseriesGraph extends HTMLElement {
                         yaxis: yaxis,
                         yhoverformat: meta["d3_tick_format"],
                     };
-                    var name = "";
-                    const formatter = meta.name_format
-                    if (formatter) {
-                        name = eval(formatter);
-                    } else {
-                        var names = [];
-                        for (const value of labels) {
-                            names.push(value);
-                        }
-                        name = names.join(" ");
-                    }
+                    var name = this.formatName(meta, labels);
                     if (name) { trace.name = name; }
                     for (const point of series) {
                         trace.x.push(new Date(point.timestamp * 1000));
@@ -190,17 +195,7 @@ class TimeseriesGraph extends HTMLElement {
                         y: [],
                         yhoverformat: meta["d3_tick_format"],
                     };
-                    const formatter = meta.name_format;
-                    var name = "";
-                    if (formatter) {
-                        name = eval(formatter);
-                    } else {
-                        var names = [];
-                        for (const value of labels) {
-                            names.push(value);
-                        }
-                        name = names.join(" ");
-                    }
+                    var name = this.formatName(meta, labels);
                     if (name) { trace.name = name; }
                     trace.y.push(series.value);
                     trace.x.push(trace.name);
