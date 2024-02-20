@@ -23,11 +23,16 @@ class TimeseriesGraph extends HTMLElement {
     #step_duration;
     #d3TickFormat = "~s";
     #targetNode = null;
+    #menuContainer = null;
+    #filterSelectElements = {};
+    #filterLabels = {};
+    #filteredLabelSets = {};
     constructor() {
         super();
         this.#width = 800;
         this.#height = 600;
         this.#pollSeconds = 30;
+        this.#menuContainer = this.appendChild(document.createElement('div'));
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
@@ -62,7 +67,7 @@ class TimeseriesGraph extends HTMLElement {
             default: // do nothing;
                 break;
         }
-        this.resetInterval();
+        this.reset();
     }
 
     connectedCallback() {
@@ -74,9 +79,10 @@ class TimeseriesGraph extends HTMLElement {
         this.#duration = this.getAttribute('duration') || null;
         this.#step_duration = this.getAttribute('step-duration') || null;
         this.#d3TickFormat = this.getAttribute('d3-tick-format') || this.#d3TickFormat;
-        this.resetInterval()
+        var self = this;
+        this.reset();
     }
-
+    
     disconnectedCallback() {
         this.stopInterval()
     }
@@ -94,12 +100,18 @@ class TimeseriesGraph extends HTMLElement {
         }
     }
 
-    resetInterval() {
-        this.stopInterval()
-        if (this.#uri) {
-            this.updateGraph();
-        }
-        this.#intervalId = setInterval(() => this.updateGraph(), 1000 * this.#pollSeconds);
+    reset(updateOnly) {
+        var self = this;
+        self.stopInterval()
+        self.fetchData().then((data) => {
+            if (!updateOnly) {
+                self.getLabelsForData(data);
+                self.buildFilterMenu();
+            }
+            self.updateGraph(data).then(() => {
+                self.#intervalId = setInterval(() => self.updateGraph(), 1000 * self.#pollSeconds);
+            });
+        });
     }
 
     static registerElement() {
@@ -117,6 +129,8 @@ class TimeseriesGraph extends HTMLElement {
     }
 
     async fetchData() {
+        // TODO(zaphar): Can we do some massaging on these
+        // to get the full set of labels and possible values?
         const response = await fetch(this.getUri());
         const data = await response.json();
         return data;
@@ -137,8 +151,80 @@ class TimeseriesGraph extends HTMLElement {
       return name;
     }
 
-    async updateGraph() {
-        const data = await this.fetchData();
+    populateFilterData(labels) {
+        for (var key in labels) {
+            const label = this.#filterLabels[key];
+            if (label) {
+                if (!label.includes(labels[key])) {
+                    this.#filterLabels[key].push(labels[key]);
+                }
+            } else {
+                this.#filterLabels[key] = [labels[key]];
+            }
+        }
+    }
+
+    buildSelectElement(key) {
+        var id = key + "-select" + Math.random();
+        const element = document.createElement("div");
+        const label = document.createElement("label");
+        label.innerText = key + ": ";
+        label.setAttribute("for", id);
+        element.appendChild(label);
+        const select = document.createElement("select");
+        select.setAttribute("name", id);
+        select.setAttribute("multiple", true);
+        const optElement = document.createElement("option");
+        const optValue = "Select " + key;
+        optElement.innerText = optValue;
+        select.appendChild(optElement);
+        for (var opt of this.#filterLabels[key]) {
+            const optElement = document.createElement("option");
+            optElement.setAttribute("value", opt);
+            optElement.innerText = opt;
+            select.appendChild(optElement);
+        }
+       
+        var self = this;
+        select.onchange = function(evt) {
+            evt.stopPropagation();
+            var filteredValues = [];
+            for (var opt of evt.target.selectedOptions) {
+                filteredValues.push(opt.getAttribute("value"));
+            }
+            self.#filteredLabelSets[key] = filteredValues;
+            self.reset(true);
+        };
+        element.appendChild(select);
+        return element;
+    }
+
+    buildFilterMenu() {
+        // We need to maintain a stable order for these
+        var children = [];
+        for (var key of Object.keys(this.#filterLabels).sort()) {
+            const element = this.#filterSelectElements[key] || this.buildSelectElement(key);
+            children.push(element);
+        }
+        this.#menuContainer.replaceChildren(...children);
+    }
+
+    getLabelsForData(data) {
+        for (var subplot of data) {
+            if (subplot.Series) {
+                for (const triple of subplot.Series) {
+                    const labels = triple[0];
+                    this.populateFilterData(labels);
+                }
+            }
+        }
+    }
+
+    async updateGraph(maybeData) {
+        var data = maybeData;
+        if (!data) {
+            data = await this.fetchData();
+        }
         const config = {
             legend: {
                 orientation: 'h'
@@ -155,8 +241,14 @@ class TimeseriesGraph extends HTMLElement {
             const default_yaxis = "y" + subplotCount
             if (subplot.Series) {
                 // https://plotly.com/javascript/reference/scatter/
-                for (const triple of subplot.Series) {
+                loopSeries: for (const triple of subplot.Series) {
                     const labels = triple[0];
+                    for (var label in labels) {
+                        var show = this.#filteredLabelSets[label];
+                        if (show && !show.includes(labels[label])) {
+                            continue loopSeries;
+                        }
+                    }
                     const meta = triple[1];
                     const yaxis = meta["named_axis"] || default_yaxis;
                     // https://plotly.com/javascript/reference/layout/yaxis/
