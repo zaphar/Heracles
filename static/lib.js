@@ -36,7 +36,7 @@ class TimeseriesGraph extends HTMLElement {
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
-    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration'];
+    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'd3-tick-format'];
 
     attributeChangedCallback(name, _oldValue, newValue) {
         switch (name) {
