@@ -33,6 +33,9 @@ class TimeseriesGraph extends HTMLElement {
         this.#height = 600;
         this.#pollSeconds = 30;
         this.#menuContainer = this.appendChild(document.createElement('div'));
+        // TODO(jwall): These should probably be done as template clones so we have less places
+        // to look for class attributes.
+        this.#menuContainer.setAttribute("class", "row-flex");
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 

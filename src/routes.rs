@@ -115,7 +115,7 @@ pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) 
         .collect::<Vec<(usize, &Graph)>>();
     html!(
         h1 { (dash.title) }
-        span-selector {}
+        span-selector class="row-flex" {}
         @for (idx, graph) in &graph_iter {
             (graph_component(dash_idx, *idx, *graph))
         }
