@@ -221,6 +221,12 @@ class TimeseriesGraph extends HTMLElement {
                     this.populateFilterData(labels);
                 }
             }
+            if (subplot.Scalar) {
+                for (const triple of subplot.Scalar) {
+                    const labels = triple[0];
+                    this.populateFilterData(labels);
+                }
+            }
         }
     }
 
@@ -281,6 +287,9 @@ class TimeseriesGraph extends HTMLElement {
                 }
             } else if (subplot.Scalar) {
                 // https://plotly.com/javascript/reference/bar/
+                layout["yaxis"] = {
+                    tickformat: this.#d3TickFormat
+                };
                 for (const triple of subplot.Scalar) {
                     const labels = triple[0];
                     const meta = triple[1];
