@@ -1,18 +1,22 @@
+body * {
+    padding-left: .3em;
+    padding-right: .3em;
+}
+
 .column-flex {
-    display: flex;
-    flex-direction: column;
+   display: flex;
+   flex-direction: column;
 }
 
 .row-flex {
-  display: flex;
-  flex-direction: row;
+   display: flex;
+   flex-direction: row;
 }
 
 .flex-item-grow {
-  flex: 1 0 auto;
+   flex: 1 0 auto;
 }
 
 .flex-item-shrink {
-  flex: 0 1 auto;
+   flex: 0 1 auto;
 }
-
