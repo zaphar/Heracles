@@ -64,6 +64,7 @@ async fn main() -> anyhow::Result<()> {
     let router = Router::new()
         // JSON api endpoints
         .nest("/js", routes::mk_js_routes(config.clone()))
+        .nest("/static", routes::mk_static_routes(config.clone()))
         .nest("/api", routes::mk_api_routes(config.clone()))
         // HTMX ui component endpoints
         .nest("/ui", routes::mk_ui_routes(config.clone()))
