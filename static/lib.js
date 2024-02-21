@@ -290,8 +290,14 @@ class TimeseriesGraph extends HTMLElement {
                 layout["yaxis"] = {
                     tickformat: this.#d3TickFormat
                 };
-                for (const triple of subplot.Scalar) {
+                loopScalar: for (const triple of subplot.Scalar) {
                     const labels = triple[0];
+                    for (var label in labels) {
+                        var show = this.#filteredLabelSets[label];
+                        if (show && !show.includes(labels[label])) {
+                            continue loopScalar;
+                        }
+                    }
                     const meta = triple[1];
                     const series = triple[2];
                     var trace = {
