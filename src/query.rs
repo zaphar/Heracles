@@ -21,18 +21,20 @@ use prometheus_http_query::{
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 pub enum QueryType {
     Range,
     Scalar,
 }
 
+#[derive(Debug)]
 pub struct TimeSpan {
     pub end: DateTime<Utc>,
     pub duration: chrono::Duration,
     pub step_seconds: i64,
 }
 
+#[derive(Debug)]
 pub struct QueryConn<'conn> {
     source: &'conn str,
     query: &'conn str,

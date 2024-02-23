@@ -115,7 +115,7 @@ pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) 
         .collect::<Vec<(usize, &Graph)>>();
     html!(
         h1 { (dash.title) }
-        span-selector {}
+        span-selector class="row-flex" {}
         @for (idx, graph) in &graph_iter {
             (graph_component(dash_idx, *idx, *graph))
         }
@@ -144,6 +144,7 @@ pub async fn index(State(config): State<Config>) -> Markup {
                 script src="/js/plotly.js" { }
                 script src="/js/htmx.js" {  }
                 script src="/js/lib.js" {  }
+                link rel="stylesheet" href="/static/site.css" {  }
                 (app(State(config.clone())).await)
             }
         }
@@ -157,15 +158,16 @@ pub async fn app(State(config): State<Config>) -> Markup {
         .enumerate()
         .collect::<Vec<(usize, String)>>();
     html! {
-        div {
-            // Header menu
-            ul {
-                @for title in &titles {
-                    li hx-get=(format!("/ui/dash/{}", title.0)) hx-target="#dashboard" { (title.1) }
+        div class="row-flex" {
+            div class="flex-item-shrink" {
+                // Header menu
+                ul {
+                    @for title in &titles {
+                        li hx-get=(format!("/ui/dash/{}", title.0)) hx-target="#dashboard" { (title.1) }
+                    }
                 }
             }
-            // dashboard display
-            div id="dashboard" { }
+            div class="flex-item-grow" id="dashboard" { }
         }
     }
 }
@@ -197,3 +199,10 @@ pub fn mk_js_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
         .route("/htmx.js", get(htmx))
         .with_state(State(config))
 }
+
+pub fn mk_static_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
+    Router::new()
+        .route("/site.css", get(|| async { return include_str!("../static/site.css"); }))
+        .with_state(State(config))
+}
+

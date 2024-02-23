@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+function getCssVariableValue(variableName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(variableName);
+}
+
 class TimeseriesGraph extends HTMLElement {
     #uri;
     #width;
@@ -33,10 +37,13 @@ class TimeseriesGraph extends HTMLElement {
         this.#height = 600;
         this.#pollSeconds = 30;
         this.#menuContainer = this.appendChild(document.createElement('div'));
+        // TODO(jwall): These should probably be done as template clones so we have less places
+        // to look for class attributes.
+        this.#menuContainer.setAttribute("class", "row-flex");
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
-    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration'];
+    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'd3-tick-format'];
 
     attributeChangedCallback(name, _oldValue, newValue) {
         switch (name) {
@@ -181,6 +188,7 @@ class TimeseriesGraph extends HTMLElement {
         for (var opt of this.#filterLabels[key]) {
             const optElement = document.createElement("option");
             optElement.setAttribute("value", opt);
+            optElement.setAttribute("selected", true);
             optElement.innerText = opt;
             select.appendChild(optElement);
         }
@@ -217,6 +225,12 @@ class TimeseriesGraph extends HTMLElement {
                     this.populateFilterData(labels);
                 }
             }
+            if (subplot.Scalar) {
+                for (const triple of subplot.Scalar) {
+                    const labels = triple[0];
+                    this.populateFilterData(labels);
+                }
+            }
         }
     }
 
@@ -233,6 +247,14 @@ class TimeseriesGraph extends HTMLElement {
         var layout = {
             displayModeBar: false,
             responsive: true,
+            plot_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            paper_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            font: {
+                color: getCssVariableValue('--text-color').trim()
+            },
+            xaxis: {
+                gridcolor: getCssVariableValue("--accent-color")
+            }
         };
         var traces = [];
         for (var subplot_idx in data) {
@@ -254,6 +276,7 @@ class TimeseriesGraph extends HTMLElement {
                     // https://plotly.com/javascript/reference/layout/yaxis/
                     layout["yaxis" + subplotCount] = {
                         anchor: yaxis,
+                        gridcolor: getCssVariableValue("--accent-color"),
                         tickformat: meta["d3_tick_format"] || this.#d3TickFormat
                     };
                     const series = triple[2];
@@ -277,8 +300,18 @@ class TimeseriesGraph extends HTMLElement {
                 }
             } else if (subplot.Scalar) {
                 // https://plotly.com/javascript/reference/bar/
-                for (const triple of subplot.Scalar) {
+                layout["yaxis"] = {
+                    tickformat: this.#d3TickFormat,
+                    gridcolor: getCssVariableValue("--accent-color")
+                };
+                loopScalar: for (const triple of subplot.Scalar) {
                     const labels = triple[0];
+                    for (var label in labels) {
+                        var show = this.#filteredLabelSets[label];
+                        if (show && !show.includes(labels[label])) {
+                            continue loopScalar;
+                        }
+                    }
                     const meta = triple[1];
                     const series = triple[2];
                     var trace = {
@@ -328,6 +361,7 @@ class SpanSelector extends HTMLElement {
 
     connectedCallback() {
         const self = this;
+        // TODO(jwall): We should probably show a loading indicator of some kind.
         self.#updateInput.onclick = function(_evt) {
             self.updateGraphs()
         };
