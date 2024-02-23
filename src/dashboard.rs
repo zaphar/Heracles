@@ -18,8 +18,9 @@ use chrono::Duration;
 use serde::Deserialize;
 use serde_yaml;
 use tracing::{debug, error};
+use anyhow::Result;
 
-use crate::query::{QueryConn, QueryType, PlotMeta};
+use crate::query::{QueryConn, QueryType, QueryResult, PlotMeta, to_samples};
 
 #[derive(Deserialize, Debug)]
 pub struct GraphSpan {
@@ -50,6 +51,21 @@ pub struct Graph {
     pub span: Option<GraphSpan>,
     pub query_type: QueryType,
     pub d3_tick_format: Option<String>,
+}
+
+pub async fn query_data(graph: &Graph, dash: &Dashboard, query_span: Option<GraphSpan>) -> Result<Vec<QueryResult>> {
+    let connections = graph.get_query_connections(&dash.span, &query_span);
+    let mut data = Vec::new();
+    for conn in connections {
+        data.push(to_samples(
+            conn.get_results()
+                .await?
+                .data()
+                .clone(),
+            conn.meta,
+        ));
+    }
+    Ok(data)
 }
 
 fn duration_from_string(duration_string: &str) -> Option<Duration> {

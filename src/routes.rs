@@ -24,7 +24,7 @@ use axum::{
 use maud::{html, Markup};
 use tracing::debug;
 
-use crate::dashboard::{Dashboard, Graph, GraphSpan};
+use crate::dashboard::{Dashboard, Graph, GraphSpan, query_data};
 use crate::query::{to_samples, QueryResult};
 
 type Config = State<Arc<Vec<Dashboard>>>;
@@ -54,18 +54,7 @@ pub async fn graph_query(
             None
         }
     };
-    let connections = graph.get_query_connections(&dash.span, &query_span);
-    let mut data = Vec::new();
-    for conn in connections {
-        data.push(to_samples(
-            conn.get_results()
-                .await
-                .expect("Unable to get query results")
-                .data()
-                .clone(),
-            conn.meta,
-        ));
-    }
+    let data = query_data(graph, dash, query_span).await.expect("Unable to get query results");
     Json(data)
 }
 

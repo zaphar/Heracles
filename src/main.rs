@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::path::PathBuf;
-
 use anyhow;
 use axum::{self, extract::State, routing::*, Router};
 use clap::{self, Parser, ValueEnum};
+use dashboard::{Dashboard, query_data};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
+use tracing::{error, info};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
@@ -43,6 +44,19 @@ struct Cli {
     pub config: PathBuf,
     #[arg(long, value_enum, default_value_t = Verbosity::INFO)]
     pub verbose: Verbosity,
+    #[arg(long, default_value_t = false)]
+    pub validate: bool,
+}
+
+async fn validate(dash: &Dashboard) -> anyhow::Result<()> {
+    for graph in dash.graphs.iter() {
+        let data = query_data(graph, &dash, None).await;
+        if data.is_err() {
+            error!(err=?data, "Invalid dashboard query or queries");
+        }
+        let _ = data?;
+    }
+    return Ok(());
 }
 
 #[tokio::main]
@@ -61,6 +75,14 @@ async fn main() -> anyhow::Result<()> {
     .expect("setting default subscriber failed");
 
     let config = std::sync::Arc::new(dashboard::read_dashboard_list(args.config.as_path())?);
+
+    if args.validate {
+        for dash in config.iter() {
+            validate(&dash).await?;
+            info!("All Queries successfully run against source");
+            return Ok(());
+        }
+    }
     let router = Router::new()
         // JSON api endpoints
         .nest("/js", routes::mk_js_routes(config.clone()))
