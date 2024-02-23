@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+function getCssVariableValue(variableName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(variableName);
+}
+
 class TimeseriesGraph extends HTMLElement {
     #uri;
     #width;
@@ -243,6 +247,11 @@ class TimeseriesGraph extends HTMLElement {
         var layout = {
             displayModeBar: false,
             responsive: true,
+            plot_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            paper_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            font: {
+                color: getCssVariableValue('--text-color').trim()
+            }
         };
         var traces = [];
         for (var subplot_idx in data) {
