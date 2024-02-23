@@ -83,3 +83,10 @@ body * {
 .flex-item-shrink {
    flex: 0 1 auto;
 }
+
+timeseries-graph {
+    background-color: var(--paper-background-color);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+}
