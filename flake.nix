@@ -52,6 +52,7 @@
         config,
         pkgs,
         lib,
+        ...
       }: {
         options = {
           services.heracles.enable = lib.mkEnableOption "enable heracles service";
