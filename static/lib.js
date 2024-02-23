@@ -172,12 +172,9 @@ class TimeseriesGraph extends HTMLElement {
     }
 
     buildSelectElement(key) {
+        // TODO(jwall): Should we have a select all?
         var id = key + "-select" + Math.random();
         const element = document.createElement("div");
-        const label = document.createElement("label");
-        label.innerText = key + ": ";
-        label.setAttribute("for", id);
-        element.appendChild(label);
         const select = document.createElement("select");
         select.setAttribute("name", id);
         select.setAttribute("multiple", true);
