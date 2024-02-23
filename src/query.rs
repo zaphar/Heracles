@@ -118,9 +118,26 @@ pub struct DataPoint {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum FillTypes {
+    #[serde(rename = "tonexty")]
+    ToNextY,
+    #[serde(rename = "tozeroy")]
+    ToZeroY,
+    #[serde(rename = "tonextx")]
+    ToNextX,
+    #[serde(rename = "tozerox")]
+    ToZeroX,
+    #[serde(rename = "toself")]
+    ToSelf,
+    #[serde(rename = "tonext")]
+    ToNext,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlotMeta {
     name_format: Option<String>,
     named_axis: Option<String>,
+    fill: Option<FillTypes>,
     d3_tick_format: Option<String>,
 }
 

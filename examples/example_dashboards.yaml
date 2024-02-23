@@ -9,6 +9,7 @@
           query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))' # The PromQL query for this plot
           meta: # metadata for this plot
             name_format: "`${labels.instance}`" # javascript template literal to format the trace name
+            fill: tozeroy
             #d3_tick_format: "~%" # d3 tick format override for this plot's yaxis
             #named_axis: "y" # yaxis name to use for this subplots traces
       span: # The span for this range query

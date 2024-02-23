@@ -287,6 +287,9 @@ class TimeseriesGraph extends HTMLElement {
                         yaxis: yaxis,
                         yhoverformat: meta["d3_tick_format"],
                     };
+                    if (meta.fill) {
+                        trace.fill = meta.fill;
+                    }
                     var name = this.formatName(meta, labels);
                     if (name) { trace.name = name; }
                     for (const point of series) {
