@@ -251,6 +251,9 @@ class TimeseriesGraph extends HTMLElement {
             paper_bgcolor: getCssVariableValue('--paper-background-color').trim(),
             font: {
                 color: getCssVariableValue('--text-color').trim()
+            },
+            xaxis: {
+                gridcolor: getCssVariableValue("--accent-color")
             }
         };
         var traces = [];
@@ -273,6 +276,7 @@ class TimeseriesGraph extends HTMLElement {
                     // https://plotly.com/javascript/reference/layout/yaxis/
                     layout["yaxis" + subplotCount] = {
                         anchor: yaxis,
+                        gridcolor: getCssVariableValue("--accent-color"),
                         tickformat: meta["d3_tick_format"] || this.#d3TickFormat
                     };
                     const series = triple[2];
@@ -297,7 +301,8 @@ class TimeseriesGraph extends HTMLElement {
             } else if (subplot.Scalar) {
                 // https://plotly.com/javascript/reference/bar/
                 layout["yaxis"] = {
-                    tickformat: this.#d3TickFormat
+                    tickformat: this.#d3TickFormat,
+                    gridcolor: getCssVariableValue("--accent-color")
                 };
                 loopScalar: for (const triple of subplot.Scalar) {
                     const labels = triple[0];
@@ -356,6 +361,7 @@ class SpanSelector extends HTMLElement {
 
     connectedCallback() {
         const self = this;
+        // TODO(jwall): We should probably show a loading indicator of some kind.
         self.#updateInput.onclick = function(_evt) {
             self.updateGraphs()
         };
