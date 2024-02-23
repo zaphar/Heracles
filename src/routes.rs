@@ -96,6 +96,10 @@ pub async fn graph_ui(
 
 pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) -> Markup {
     // TODO(zaphar): Should do better http error reporting here.
+    dash_elements(config, dash_idx)
+}
+
+fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> maud::PreEscaped<String> {
     let dash = config.get(dash_idx).expect("No such dashboard");
     let graph_iter = dash
         .graphs
@@ -123,7 +127,7 @@ pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
         )
 }
 
-pub async fn index(State(config): State<Config>) -> Markup {
+async fn index_html(config: Config, dash_idx: Option<usize>) -> Markup {
     html! {
         html {
             head {
@@ -132,15 +136,26 @@ pub async fn index(State(config): State<Config>) -> Markup {
             body {
                 script src="/js/plotly.js" { }
                 script src="/js/htmx.js" {  }
-                script src="/js/lib.js" {  }
+                script defer src="/js/lib.js" {  }
                 link rel="stylesheet" href="/static/site.css" {  }
-                (app(State(config.clone())).await)
+                (app(State(config.clone()), dash_idx).await)
             }
         }
     }
 }
 
-pub async fn app(State(config): State<Config>) -> Markup {
+pub async fn index(State(config): State<Config>) -> Markup {
+    index_html(config, None).await
+}
+
+pub async fn dashboard_direct(
+    State(config): State<Config>,
+    Path(dash_idx): Path<usize>,
+) -> Markup {
+    index_html(config, Some(dash_idx)).await
+}
+
+fn render_index(config: State<Arc<Vec<Dashboard>>>, dash_idx: Option<usize>) -> Markup {
     let titles = config
         .iter()
         .map(|d| d.title.clone())
@@ -152,13 +167,21 @@ pub async fn app(State(config): State<Config>) -> Markup {
                 // Header menu
                 ul {
                     @for title in &titles {
-                        li hx-get=(format!("/ui/dash/{}", title.0)) hx-target="#dashboard" { (title.1) }
+                        li hx-push-url=(format!("/dash/{}", title.0)) hx-get=(format!("/ui/dash/{}", title.0)) hx-target="#dashboard" { (title.1) }
                     }
                 }
             }
-            div class="flex-item-grow" id="dashboard" { }
+            div class="flex-item-grow" id="dashboard" {
+                @if let Some(dash_idx) = dash_idx {
+                    (dash_elements(config, dash_idx))
+                }
+            }
         }
     }
+}
+
+pub async fn app(State(config): State<Config>, dash_idx: Option<usize>) -> Markup {
+    render_index(config, dash_idx)
 }
 
 pub fn javascript_response(content: &str) -> Response<String> {

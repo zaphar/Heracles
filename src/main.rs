@@ -90,6 +90,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api", routes::mk_api_routes(config.clone()))
         // HTMX ui component endpoints
         .nest("/ui", routes::mk_ui_routes(config.clone()))
+        .route("/dash/:dash_idx", get(routes::dashboard_direct))
         .route("/", get(routes::index).with_state(State(config.clone())))
         .layer(TraceLayer::new_for_http())
         .with_state(State(config.clone()));
