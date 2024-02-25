@@ -15,12 +15,52 @@ use std::path::Path;
 
 use chrono::prelude::*;
 use chrono::Duration;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use serde_yaml;
 use tracing::{debug, error};
 use anyhow::Result;
 
-use crate::query::{QueryConn, QueryType, QueryResult, PlotMeta, to_samples};
+use crate::query::{QueryConn, QueryType, QueryResult, to_samples};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PlotMeta {
+    name_format: Option<String>,
+    fill: Option<FillTypes>,
+    yaxis: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum FillTypes {
+    #[serde(rename = "tonexty")]
+    ToNextY,
+    #[serde(rename = "tozeroy")]
+    ToZeroY,
+    #[serde(rename = "tonextx")]
+    ToNextX,
+    #[serde(rename = "tozerox")]
+    ToZeroX,
+    #[serde(rename = "toself")]
+    ToSelf,
+    #[serde(rename = "tonext")]
+    ToNext,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum AxisSide {
+    #[serde(rename = "right")]
+    Right,
+    #[serde(rename = "left")]
+    Left,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AxisDefinition {
+    anchor: Option<String>,
+    overlaying: Option<String>,
+    side: Option<AxisSide>,
+    #[serde(rename = "tickformat")]
+    tick_format: Option<String>,
+}
 
 #[derive(Deserialize, Debug)]
 pub struct GraphSpan {
@@ -47,6 +87,7 @@ pub struct SubPlot {
 #[derive(Deserialize)]
 pub struct Graph {
     pub title: String,
+    pub yaxes: Vec<AxisDefinition>,
     pub plots: Vec<SubPlot>,
     pub span: Option<GraphSpan>,
     pub query_type: QueryType,

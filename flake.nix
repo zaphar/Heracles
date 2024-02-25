@@ -77,6 +77,11 @@
                       query_type = "Range";
                       # yaxis formatting default for this graph
                       d3_tick_format = "~s";
+                      yaxes = [
+                        {
+                            tickformat = "~s";
+                        }
+                      ];
                       plots = [
                         {
                           source = "http://heimdall:9001";
@@ -85,9 +90,8 @@
                           \'\';
                           meta = {
                             name_function = "''${labels.instance}";
-                            named_axis = "y";
-                            # yaxis formatting for this subplot
-                            d3_tick_format = "~s";
+                            # yaxis to use for this plot
+                            yaxis = "y";
                           };
                         }
                       ];

@@ -22,18 +22,25 @@ use axum::{
 
 // https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
+use serde::{Serialize, Deserialize};
 use tracing::debug;
 
-use crate::dashboard::{Dashboard, Graph, GraphSpan, query_data};
-use crate::query::{to_samples, QueryResult};
+use crate::dashboard::{Dashboard, Graph, GraphSpan, AxisDefinition, query_data};
+use crate::query::QueryResult;
 
 type Config = State<Arc<Vec<Dashboard>>>;
+
+#[derive(Serialize, Deserialize)]
+pub struct GraphPayload {
+    pub yaxes: Vec<AxisDefinition>,
+    pub plots: Vec<QueryResult>,
+}
 
 pub async fn graph_query(
     State(config): Config,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
-) -> Json<Vec<QueryResult>> {
+) -> Json<GraphPayload> {
     debug!("Getting data for query");
     let dash = config.get(dash_idx).expect("No such dashboard index");
     let graph = dash
@@ -54,8 +61,8 @@ pub async fn graph_query(
             None
         }
     };
-    let data = query_data(graph, dash, query_span).await.expect("Unable to get query results");
-    Json(data)
+    let plots = query_data(graph, dash, query_span).await.expect("Unable to get query results");
+    Json(GraphPayload{yaxes: graph.yaxes.clone(), plots})
 }
 
 pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {

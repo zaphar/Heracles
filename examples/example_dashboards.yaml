@@ -3,15 +3,18 @@
   graphs: # Each Dashboard can have 1 or more graphs in it.
     - title: Node cpu # Graphs have titles
       query_type: Range # The type of graph. Range for timeseries and Scalar for point in time
-      d3_tick_format: "~s" # Default tick format for the graph y axis
+      d3_tickformat: "~s" # Default tick format for the graph y axis
+      yaxes:
+        - anchor: "y"
+          # overlaying: "y"
+          side: left
+          tickformat: "~%"
       plots: # List of pluts to show on the graph
         - source: http://heimdall:9001 # Prometheus source uri for this plot
           query: 'sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))' # The PromQL query for this plot
           meta: # metadata for this plot
             name_format: "`${labels.instance}`" # javascript template literal to format the trace name
             fill: tozeroy
-            #d3_tick_format: "~%" # d3 tick format override for this plot's yaxis
-            #named_axis: "y" # yaxis name to use for this subplots traces
       span: # The span for this range query
         end: now # Where the span ends. RFC3339 format with special handling for the now keyword
         duration: 1d # duration of the span. Uses SI formatting for duration amounts.
@@ -23,25 +26,32 @@
     step_duration: 1 minute
   graphs:
     - title: Node cpu percent
-      d3_tick_format: "~%"
+      d3_tickformat: "~%"
       query_type: Range
+      yaxes:
+        - anchor: "y" # This axis is y
+          tickformat: "~%"
+        - overlaying: "y" # This axis is y2 but overlays axis y
+          side: right # show this axis on the right side instead of the left
+          tickformat: "~%"
       plots:
         - source: http://heimdall:9001
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
           meta:
-            d3_tick_format: "~%"
             name_format: "`${labels.instance} system`"
-            named_axis: "y"
+            yaxis: "y"
         - source: http://heimdall:9001
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{mode="user",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
           meta:
-            d3_tick_format: "~%"
             name_format: "`${labels.instance} user`"
-            named_axis: "y"
+            yaxis: "y2"
     - title: Node memory
       query_type: Scalar
+      yaxes:
+        - anchor: "y"
+          tickformat: "~s"
       plots:
         - source: http://heimdall:9001
           query: 'node_memory_MemFree_bytes{job="nodestats"}'

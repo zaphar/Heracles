@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 // Copyright 2023 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,8 +13,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::collections::HashMap;
-
 use chrono::prelude::*;
 use prometheus_http_query::{
     response::{Data, PromqlResult},
@@ -20,6 +20,8 @@ use prometheus_http_query::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::debug;
+
+use crate::dashboard::PlotMeta;
 
 #[derive(Deserialize, Clone, Debug)]
 pub enum QueryType {
@@ -115,30 +117,6 @@ impl<'conn> QueryConn<'conn> {
 pub struct DataPoint {
     timestamp: f64,
     value: f64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum FillTypes {
-    #[serde(rename = "tonexty")]
-    ToNextY,
-    #[serde(rename = "tozeroy")]
-    ToZeroY,
-    #[serde(rename = "tonextx")]
-    ToNextX,
-    #[serde(rename = "tozerox")]
-    ToZeroX,
-    #[serde(rename = "toself")]
-    ToSelf,
-    #[serde(rename = "tonext")]
-    ToNext,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PlotMeta {
-    name_format: Option<String>,
-    named_axis: Option<String>,
-    fill: Option<FillTypes>,
-    d3_tick_format: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

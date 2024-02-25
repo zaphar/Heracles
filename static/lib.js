@@ -214,7 +214,8 @@ class TimeseriesGraph extends HTMLElement {
         this.#menuContainer.replaceChildren(...children);
     }
 
-    getLabelsForData(data) {
+    getLabelsForData(graph) {
+        const data = graph.plots;
         for (var subplot of data) {
             if (subplot.Series) {
                 for (const triple of subplot.Series) {
@@ -231,11 +232,25 @@ class TimeseriesGraph extends HTMLElement {
         }
     }
 
-    async updateGraph(maybeData) {
-        var data = maybeData;
-        if (!data) {
-            data = await this.fetchData();
+    yaxisNameGenerator() {
+        var counter = 1;
+        return function() {
+            var name = "yaxis";
+            if (counter != 1) {
+                name = "yaxis" + counter ;
+            }
+            counter++;
+            return name;
+        };
+    }
+
+    async updateGraph(maybeGraph) {
+        var graph = maybeGraph;
+        if (!graph) {
+            graph = await this.fetchData();
         }
+        var data = graph.plots;
+        var yaxes = graph.yaxes;
         const config = {
             legend: {
                 orientation: 'h'
@@ -253,11 +268,17 @@ class TimeseriesGraph extends HTMLElement {
                 gridcolor: getCssVariableValue("--accent-color")
             }
         };
+        var nextYaxis = this.yaxisNameGenerator();
+        for (const yaxis of yaxes) {
+            yaxis.tickformat = yaxis.tickformat || this.#d3TickFormat;
+            yaxis.gridColor = getCssVariableValue("--accent-color");
+            layout[nextYaxis()] = yaxis;
+        }
         var traces = [];
         for (var subplot_idx in data) {
             const subplot = data[subplot_idx];
             const subplotCount = Number(subplot_idx) + 1;
-            const default_yaxis = "y" + subplotCount
+            var nextYaxis = this.yaxisNameGenerator();
             if (subplot.Series) {
                 // https://plotly.com/javascript/reference/scatter/
                 loopSeries: for (const triple of subplot.Series) {
@@ -269,13 +290,8 @@ class TimeseriesGraph extends HTMLElement {
                         }
                     }
                     const meta = triple[1];
-                    const yaxis = meta["named_axis"] || default_yaxis;
+                    var yaxis = meta.yaxis || "y";
                     // https://plotly.com/javascript/reference/layout/yaxis/
-                    layout["yaxis" + subplotCount] = {
-                        anchor: yaxis,
-                        gridcolor: getCssVariableValue("--accent-color"),
-                        tickformat: meta["d3_tick_format"] || this.#d3TickFormat
-                    };
                     const series = triple[2];
                     var trace = {
                         type: "scatter",
@@ -285,7 +301,7 @@ class TimeseriesGraph extends HTMLElement {
                         // We always share the x axis for timeseries graphs.
                         xaxis: "x",
                         yaxis: yaxis,
-                        yhoverformat: meta["d3_tick_format"],
+                        //yhoverformat: yaxis.tickformat,
                     };
                     if (meta.fill) {
                         trace.fill = meta.fill;
@@ -300,10 +316,6 @@ class TimeseriesGraph extends HTMLElement {
                 }
             } else if (subplot.Scalar) {
                 // https://plotly.com/javascript/reference/bar/
-                layout["yaxis"] = {
-                    tickformat: this.#d3TickFormat,
-                    gridcolor: getCssVariableValue("--accent-color")
-                };
                 loopScalar: for (const triple of subplot.Scalar) {
                     const labels = triple[0];
                     for (var label in labels) {
