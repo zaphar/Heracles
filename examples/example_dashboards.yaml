@@ -4,6 +4,7 @@
     - title: Node cpu # Graphs have titles
       query_type: Range # The type of graph. Range for timeseries and Scalar for point in time
       d3_tickformat: "~s" # Default tick format for the graph y axis
+      legend_orientation: h
       yaxes:
         - anchor: "y"
           # overlaying: "y"

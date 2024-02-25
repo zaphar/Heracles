@@ -255,11 +255,6 @@ class TimeseriesGraph extends HTMLElement {
         }
         var data = graph.plots;
         var yaxes = graph.yaxes;
-        const config = {
-            legend: {
-                orientation: 'h'
-            }
-        };
         var layout = {
             displayModeBar: false,
             responsive: true,
@@ -270,8 +265,14 @@ class TimeseriesGraph extends HTMLElement {
             },
             xaxis: {
                 gridcolor: getCssVariableValue("--accent-color")
+            },
+            legend: {
+                orientation: 'v'
             }
         };
+        if (graph.legend_orientation) {
+            layout.legend.orientation = graph.legend_orientation;
+        }
         var nextYaxis = this.yaxisNameGenerator();
         for (const yaxis of yaxes) {
             yaxis.tickformat = yaxis.tickformat || this.#d3TickFormat;
@@ -345,7 +346,7 @@ class TimeseriesGraph extends HTMLElement {
             }
         }
         // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
-        Plotly.react(this.getTargetNode(), traces, layout, config);
+        Plotly.react(this.getTargetNode(), traces, layout, null);
     }
 }
 

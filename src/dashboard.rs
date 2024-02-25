@@ -84,9 +84,18 @@ pub struct SubPlot {
     pub meta: PlotMeta,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub enum Orientation {
+    #[serde(rename = "h")]
+    Horizontal,
+    #[serde(rename = "v")]
+    Vertical,
+}
+
 #[derive(Deserialize)]
 pub struct Graph {
     pub title: String,
+    pub legend_orientation: Option<Orientation>,
     pub yaxes: Vec<AxisDefinition>,
     pub plots: Vec<SubPlot>,
     pub span: Option<GraphSpan>,

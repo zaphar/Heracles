@@ -25,13 +25,14 @@ use maud::{html, Markup};
 use serde::{Serialize, Deserialize};
 use tracing::debug;
 
-use crate::dashboard::{Dashboard, Graph, GraphSpan, AxisDefinition, query_data};
+use crate::dashboard::{Dashboard, Graph, GraphSpan, AxisDefinition, Orientation, query_data};
 use crate::query::QueryResult;
 
 type Config = State<Arc<Vec<Dashboard>>>;
 
 #[derive(Serialize, Deserialize)]
 pub struct GraphPayload {
+    pub legend_orientation: Option<Orientation>,
     pub yaxes: Vec<AxisDefinition>,
     pub plots: Vec<QueryResult>,
 }
@@ -62,7 +63,7 @@ pub async fn graph_query(
         }
     };
     let plots = query_data(graph, dash, query_span).await.expect("Unable to get query results");
-    Json(GraphPayload{yaxes: graph.yaxes.clone(), plots})
+    Json(GraphPayload{legend_orientation: graph.legend_orientation.clone(), yaxes: graph.yaxes.clone(), plots})
 }
 
 pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
