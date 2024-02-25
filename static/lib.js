@@ -89,7 +89,7 @@ class TimeseriesGraph extends HTMLElement {
         var self = this;
         this.reset();
     }
-    
+
     disconnectedCallback() {
         this.stopInterval()
     }
@@ -144,18 +144,18 @@ class TimeseriesGraph extends HTMLElement {
     }
 
     formatName(meta, labels) {
-      var name = "";
-      const formatter = meta.name_format
-      if (formatter) {
-          name = eval(formatter);
-      } else {
-          var names = [];
-          for (const value of labels) {
-              names.push(value);
-          }
-          name = names.join(" ");
-      }
-      return name;
+        var name = "";
+        const formatter = meta.name_format
+        if (formatter) {
+            name = eval(formatter);
+        } else {
+            var names = [];
+            for (const value of labels) {
+                names.push(value);
+            }
+            name = names.join(" ");
+        }
+        return name;
     }
 
     populateFilterData(labels) {
@@ -189,7 +189,7 @@ class TimeseriesGraph extends HTMLElement {
             optElement.innerText = opt;
             select.appendChild(optElement);
         }
-       
+
         var self = this;
         select.onchange = function(evt) {
             evt.stopPropagation();
@@ -208,8 +208,12 @@ class TimeseriesGraph extends HTMLElement {
         // We need to maintain a stable order for these
         var children = [];
         for (var key of Object.keys(this.#filterLabels).sort()) {
-            const element = this.#filterSelectElements[key] || this.buildSelectElement(key);
-            children.push(element);
+            // If there are multiple items to filter by then show the selectElement.
+            // otherwise there is no point.
+            if (this.#filterLabels[key].length > 1) {
+                const element = this.#filterSelectElements[key] || this.buildSelectElement(key);
+                children.push(element);
+            }
         }
         this.#menuContainer.replaceChildren(...children);
     }
@@ -237,7 +241,7 @@ class TimeseriesGraph extends HTMLElement {
         return function() {
             var name = "yaxis";
             if (counter != 1) {
-                name = "yaxis" + counter ;
+                name = "yaxis" + counter;
             }
             counter++;
             return name;
