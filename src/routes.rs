@@ -135,6 +135,31 @@ pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
         )
 }
 
+fn graph_lib_prelude() -> Markup {
+    html! {
+        script src="/js/plotly.js" { }
+        script defer src="/js/lib.js" {  }
+        link rel="stylesheet" href="/static/site.css" {  }
+    }
+}
+
+pub async fn graph_embed(
+    State(config): State<Config>,
+    Path((dash_idx, graph_idx)): Path<(usize, usize)>,
+) -> Markup {
+    html! {
+        html {
+            head {
+                title { ("Heracles - Prometheus Unshackled") }
+            }
+            body {
+                (graph_lib_prelude())
+                (graph_ui(State(config.clone()), Path((dash_idx, graph_idx))).await)
+            }
+        }
+    }
+}
+
 async fn index_html(config: Config, dash_idx: Option<usize>) -> Markup {
     html! {
         html {
@@ -142,10 +167,8 @@ async fn index_html(config: Config, dash_idx: Option<usize>) -> Markup {
                 title { ("Heracles - Prometheus Unshackled") }
             }
             body {
-                script src="/js/plotly.js" { }
                 script src="/js/htmx.js" {  }
-                script defer src="/js/lib.js" {  }
-                link rel="stylesheet" href="/static/site.css" {  }
+                (graph_lib_prelude())
                 (app(State(config.clone()), dash_idx).await)
             }
         }
@@ -156,10 +179,7 @@ pub async fn index(State(config): State<Config>) -> Markup {
     index_html(config, None).await
 }
 
-pub async fn dashboard_direct(
-    State(config): State<Config>,
-    Path(dash_idx): Path<usize>,
-) -> Markup {
+pub async fn dashboard_direct(State(config): State<Config>, Path(dash_idx): Path<usize>) -> Markup {
     index_html(config, Some(dash_idx)).await
 }
 
@@ -222,7 +242,11 @@ pub fn mk_js_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
 
 pub fn mk_static_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     Router::new()
-        .route("/site.css", get(|| async { return include_str!("../static/site.css"); }))
+        .route(
+            "/site.css",
+            get(|| async {
+                return include_str!("../static/site.css");
+            }),
+        )
         .with_state(State(config))
 }
-
