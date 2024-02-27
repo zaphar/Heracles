@@ -18,12 +18,11 @@ use prometheus_http_query::{
     response::{Data, PromqlResult},
     Client,
 };
-use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::dashboard::PlotMeta;
 
-use super::{QueryType, TimeSpan};
+use super::{QueryType, TimeSpan, QueryResult, DataPoint};
 
 #[derive(Debug)]
 pub struct PromQueryConn<'conn> {
@@ -35,7 +34,12 @@ pub struct PromQueryConn<'conn> {
 }
 
 impl<'conn> PromQueryConn<'conn> {
-    pub fn new<'a: 'conn>(source: &'a str, query: &'a str, query_type: QueryType, meta: PlotMeta) -> Self {
+    pub fn new<'a: 'conn>(
+        source: &'a str,
+        query: &'a str,
+        query_type: QueryType,
+        meta: PlotMeta,
+    ) -> Self {
         Self {
             source,
             query,
@@ -102,44 +106,9 @@ impl<'conn> PromQueryConn<'conn> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DataPoint {
-    timestamp: f64,
-    value: f64,
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum PromQueryResult {
-    Series(Vec<(HashMap<String, String>, PlotMeta, Vec<DataPoint>)>),
-    Scalar(Vec<(HashMap<String, String>, PlotMeta, DataPoint)>),
-}
-
-impl std::fmt::Debug for PromQueryResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PromQueryResult::Series(v) => {
-                f.write_fmt(format_args!("Series trace count = {}", v.len()))?;
-                for (idx, (tags, meta, trace)) in v.iter().enumerate() {
-                    f.write_fmt(format_args!(
-                        "; {}: tags {:?} meta: {:?} datapoint count = {};",
-                        idx,
-                        tags,
-                        meta,
-                        trace.len()
-                    ))?;
-                }
-            }
-            PromQueryResult::Scalar(v) => {
-                f.write_fmt(format_args!("{} traces", v.len()))?;
-            }
-        }
-        Ok(())
-    }
-}
-
-pub fn to_samples(data: Data, meta: PlotMeta) -> PromQueryResult {
+pub fn prom_to_samples(data: Data, meta: PlotMeta) -> QueryResult {
     match data {
-        Data::Matrix(mut range) => PromQueryResult::Series(
+        Data::Matrix(mut range) => QueryResult::Series(
             range
                 .drain(0..)
                 .map(|rv| {
@@ -158,7 +127,7 @@ pub fn to_samples(data: Data, meta: PlotMeta) -> PromQueryResult {
                 })
                 .collect(),
         ),
-        Data::Vector(mut vector) => PromQueryResult::Scalar(
+        Data::Vector(mut vector) => QueryResult::Scalar(
             vector
                 .drain(0..)
                 .map(|iv| {
@@ -174,7 +143,7 @@ pub fn to_samples(data: Data, meta: PlotMeta) -> PromQueryResult {
                 })
                 .collect(),
         ),
-        Data::Scalar(sample) => PromQueryResult::Scalar(vec![(
+        Data::Scalar(sample) => QueryResult::Scalar(vec![(
             HashMap::new(),
             meta.clone(),
             DataPoint {

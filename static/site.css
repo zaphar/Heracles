@@ -84,7 +84,7 @@ body * {
    flex: 0 1 auto;
 }
 
-timeseries-graph {
+graph-plot {
     background-color: var(--paper-background-color);
     border-radius: 4px;
     display: flex;

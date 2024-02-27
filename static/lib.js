@@ -16,7 +16,7 @@ function getCssVariableValue(variableName) {
     return getComputedStyle(document.documentElement).getPropertyValue(variableName);
 }
 
-class TimeseriesGraph extends HTMLElement {
+class GraphPlot extends HTMLElement {
     #uri;
     #width;
     #height;
@@ -94,7 +94,7 @@ class TimeseriesGraph extends HTMLElement {
         this.stopInterval()
     }
 
-    static elementName = "timeseries-graph";
+    static elementName = "graph-plot";
 
     getTargetNode() {
         return this.#targetNode;
@@ -122,8 +122,8 @@ class TimeseriesGraph extends HTMLElement {
     }
 
     static registerElement() {
-        if (!customElements.get(TimeseriesGraph.elementName)) {
-            customElements.define(TimeseriesGraph.elementName, TimeseriesGraph);
+        if (!customElements.get(GraphPlot.elementName)) {
+            customElements.define(GraphPlot.elementName, GraphPlot);
         }
     }
 
@@ -350,7 +350,7 @@ class TimeseriesGraph extends HTMLElement {
     }
 }
 
-TimeseriesGraph.registerElement();
+GraphPlot.registerElement();
 
 class SpanSelector extends HTMLElement {
     #targetNode = null;
@@ -389,7 +389,7 @@ class SpanSelector extends HTMLElement {
     }
 
     updateGraphs() {
-        for (var node of document.getElementsByTagName(TimeseriesGraph.elementName)) {
+        for (var node of document.getElementsByTagName(GraphPlot.elementName)) {
             node.setAttribute('end', this.#endInput.value);
             node.setAttribute('duration', this.#durationInput.value);
             node.setAttribute('step-duration', this.#stepDurationInput.value);

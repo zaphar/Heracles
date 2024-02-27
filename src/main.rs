@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use anyhow;
 use axum::{self, extract::State, routing::*, Router};
 use clap::{self, Parser, ValueEnum};
-use dashboard::{Dashboard, query_data};
+use dashboard::{Dashboard, prom_query_data};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
@@ -49,12 +49,14 @@ struct Cli {
 }
 
 async fn validate(dash: &Dashboard) -> anyhow::Result<()> {
-    for graph in dash.graphs.iter() {
-        let data = query_data(graph, &dash, None).await;
-        if data.is_err() {
-            error!(err=?data, "Invalid dashboard query or queries");
+    if let Some(ref graphs) = dash.graphs {
+        for graph in graphs.iter() {
+            let data = prom_query_data(graph, &dash, None).await;
+            if data.is_err() {
+                error!(err=?data, "Invalid dashboard query or queries");
+            }
+            let _ = data?;
         }
-        let _ = data?;
     }
     return Ok(());
 }
