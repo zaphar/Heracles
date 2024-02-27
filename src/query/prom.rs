@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-// Copyright 2023 Jeremy Wall
+// Copyright 2024 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +11,8 @@ use std::collections::HashMap;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::collections::HashMap;
+
 use chrono::prelude::*;
 use prometheus_http_query::{
     response::{Data, PromqlResult},
@@ -23,21 +23,10 @@ use tracing::debug;
 
 use crate::dashboard::PlotMeta;
 
-#[derive(Deserialize, Clone, Debug)]
-pub enum QueryType {
-    Range,
-    Scalar,
-}
+use super::{QueryType, TimeSpan};
 
 #[derive(Debug)]
-pub struct TimeSpan {
-    pub end: DateTime<Utc>,
-    pub duration: chrono::Duration,
-    pub step_seconds: i64,
-}
-
-#[derive(Debug)]
-pub struct QueryConn<'conn> {
+pub struct PromQueryConn<'conn> {
     source: &'conn str,
     query: &'conn str,
     span: Option<TimeSpan>,
@@ -45,7 +34,7 @@ pub struct QueryConn<'conn> {
     pub meta: PlotMeta,
 }
 
-impl<'conn> QueryConn<'conn> {
+impl<'conn> PromQueryConn<'conn> {
     pub fn new<'a: 'conn>(source: &'a str, query: &'a str, query_type: QueryType, meta: PlotMeta) -> Self {
         Self {
             source,
@@ -120,15 +109,15 @@ pub struct DataPoint {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum QueryResult {
+pub enum PromQueryResult {
     Series(Vec<(HashMap<String, String>, PlotMeta, Vec<DataPoint>)>),
     Scalar(Vec<(HashMap<String, String>, PlotMeta, DataPoint)>),
 }
 
-impl std::fmt::Debug for QueryResult {
+impl std::fmt::Debug for PromQueryResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            QueryResult::Series(v) => {
+            PromQueryResult::Series(v) => {
                 f.write_fmt(format_args!("Series trace count = {}", v.len()))?;
                 for (idx, (tags, meta, trace)) in v.iter().enumerate() {
                     f.write_fmt(format_args!(
@@ -140,7 +129,7 @@ impl std::fmt::Debug for QueryResult {
                     ))?;
                 }
             }
-            QueryResult::Scalar(v) => {
+            PromQueryResult::Scalar(v) => {
                 f.write_fmt(format_args!("{} traces", v.len()))?;
             }
         }
@@ -148,9 +137,9 @@ impl std::fmt::Debug for QueryResult {
     }
 }
 
-pub fn to_samples(data: Data, meta: PlotMeta) -> QueryResult {
+pub fn to_samples(data: Data, meta: PlotMeta) -> PromQueryResult {
     match data {
-        Data::Matrix(mut range) => QueryResult::Series(
+        Data::Matrix(mut range) => PromQueryResult::Series(
             range
                 .drain(0..)
                 .map(|rv| {
@@ -169,7 +158,7 @@ pub fn to_samples(data: Data, meta: PlotMeta) -> QueryResult {
                 })
                 .collect(),
         ),
-        Data::Vector(mut vector) => QueryResult::Scalar(
+        Data::Vector(mut vector) => PromQueryResult::Scalar(
             vector
                 .drain(0..)
                 .map(|iv| {
@@ -185,7 +174,7 @@ pub fn to_samples(data: Data, meta: PlotMeta) -> QueryResult {
                 })
                 .collect(),
         ),
-        Data::Scalar(sample) => QueryResult::Scalar(vec![(
+        Data::Scalar(sample) => PromQueryResult::Scalar(vec![(
             HashMap::new(),
             meta.clone(),
             DataPoint {

@@ -26,7 +26,7 @@ use serde::{Serialize, Deserialize};
 use tracing::debug;
 
 use crate::dashboard::{Dashboard, Graph, GraphSpan, AxisDefinition, Orientation, query_data};
-use crate::query::QueryResult;
+use crate::query::PromQueryResult;
 
 type Config = State<Arc<Vec<Dashboard>>>;
 
@@ -34,7 +34,7 @@ type Config = State<Arc<Vec<Dashboard>>>;
 pub struct GraphPayload {
     pub legend_orientation: Option<Orientation>,
     pub yaxes: Vec<AxisDefinition>,
-    pub plots: Vec<QueryResult>,
+    pub plots: Vec<PromQueryResult>,
 }
 
 pub async fn graph_query(

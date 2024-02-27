@@ -20,7 +20,7 @@ use serde_yaml;
 use tracing::{debug, error};
 use anyhow::Result;
 
-use crate::query::{QueryConn, QueryType, QueryResult, to_samples};
+use crate::query::{PromQueryConn, QueryType, PromQueryResult, to_samples};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlotMeta {
@@ -103,7 +103,7 @@ pub struct Graph {
     pub d3_tick_format: Option<String>,
 }
 
-pub async fn query_data(graph: &Graph, dash: &Dashboard, query_span: Option<GraphSpan>) -> Result<Vec<QueryResult>> {
+pub async fn query_data(graph: &Graph, dash: &Dashboard, query_span: Option<GraphSpan>) -> Result<Vec<PromQueryResult>> {
     let connections = graph.get_query_connections(&dash.span, &query_span);
     let mut data = Vec::new();
     for conn in connections {
@@ -172,7 +172,7 @@ impl Graph {
         &'graph self,
         graph_span: &'graph Option<GraphSpan>,
         query_span: &'graph Option<GraphSpan>,
-    ) -> Vec<QueryConn<'conn>> {
+    ) -> Vec<PromQueryConn<'conn>> {
         let mut conns = Vec::new();
         for plot in self.plots.iter() {
             debug!(
@@ -180,7 +180,7 @@ impl Graph {
                 source = plot.source,
                 "Getting query connection for graph"
             );
-            let mut conn = QueryConn::new(&plot.source, &plot.query, self.query_type.clone(), plot.meta.clone());
+            let mut conn = PromQueryConn::new(&plot.source, &plot.query, self.query_type.clone(), plot.meta.clone());
             // Query params take precendence over all other settings. Then graph settings take
             // precedences and finally the dashboard settings take precendence
             if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
