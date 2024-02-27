@@ -77,9 +77,10 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
 pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
     let graph_id = format!("graph-{}-{}", dash_idx, graph_idx);
     let graph_data_uri = format!("/api/dash/{}/graph/{}", dash_idx, graph_idx);
+    let graph_embed_uri = format!("/embed/dash/{}/graph/{}", dash_idx, graph_idx);
     html!(
         div {
-            h2 { (graph.title) }
+            h2 { (graph.title) " - " a href=(graph_embed_uri) { "embed url" } }
             @if graph.d3_tick_format.is_some() { 
                 timeseries-graph uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
             } @else {
