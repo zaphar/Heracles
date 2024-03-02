@@ -22,10 +22,12 @@ use axum::{
 
 // https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-use crate::dashboard::{Dashboard, Graph, GraphSpan, AxisDefinition, Orientation, prom_query_data, loki_query_data};
+use crate::dashboard::{
+    loki_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation,
+};
 use crate::query::QueryResult;
 
 type Config = State<Arc<Vec<Dashboard>>>;
@@ -43,12 +45,23 @@ pub async fn loki_query(
     Path((dash_idx, loki_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Json<GraphPayload> {
-    let dash = config.get(dash_idx).expect(&format!("No such dashboard index {}", dash_idx));
-    let log = dash.logs
-        .as_ref().expect("No logs in this dashboard")
-        .get(loki_idx).expect(&format!("No such log query {}", loki_idx));
-    let plots = vec![loki_query_data(log, dash, query_to_graph_span(query)).await.expect("Unable to get log query results")];
-    Json(GraphPayload{legend_orientation: None, yaxes: log.yaxes.clone(), plots})
+    let dash = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard index {}", dash_idx));
+    let log = dash
+        .logs
+        .as_ref()
+        .expect("No logs in this dashboard")
+        .get(loki_idx)
+        .expect(&format!("No such log query {}", loki_idx));
+    let plots = vec![loki_query_data(log, dash, query_to_graph_span(query))
+        .await
+        .expect("Unable to get log query results")];
+    Json(GraphPayload {
+        legend_orientation: None,
+        yaxes: log.yaxes.clone(),
+        plots,
+    })
 }
 
 pub async fn graph_query(
@@ -57,14 +70,23 @@ pub async fn graph_query(
     Query(query): Query<HashMap<String, String>>,
 ) -> Json<GraphPayload> {
     debug!("Getting data for query");
-    let dash = config.get(dash_idx).expect(&format!("No such dashboard index {}", dash_idx));
+    let dash = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard index {}", dash_idx));
     let graph = dash
         .graphs
-        .as_ref().expect("No graphs in this dashboard")
+        .as_ref()
+        .expect("No graphs in this dashboard")
         .get(graph_idx)
         .expect(&format!("No such graph in dasboard {}", dash_idx));
-    let plots = prom_query_data(graph, dash, query_to_graph_span(query)).await.expect("Unable to get query results");
-    Json(GraphPayload{legend_orientation: graph.legend_orientation.clone(), yaxes: graph.yaxes.clone(), plots})
+    let plots = prom_query_data(graph, dash, query_to_graph_span(query))
+        .await
+        .expect("Unable to get query results");
+    Json(GraphPayload {
+        legend_orientation: graph.legend_orientation.clone(),
+        yaxes: graph.yaxes.clone(),
+        plots,
+    })
 }
 
 fn query_to_graph_span(query: HashMap<String, String>) -> Option<GraphSpan> {
@@ -89,13 +111,13 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     // Query routes
     Router::new()
         .route(
-        "/dash/:dash_idx/graph/:graph_idx",
-        get(graph_query).with_state(config.clone()),
-    )
+            "/dash/:dash_idx/graph/:graph_idx",
+            get(graph_query).with_state(config.clone()),
+        )
         .route(
-        "/dash/:dash_idx/log/:log_idx",
-        get(loki_query).with_state(config),
-    )
+            "/dash/:dash_idx/log/:log_idx",
+            get(loki_query).with_state(config),
+        )
 }
 
 pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
@@ -105,7 +127,7 @@ pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Mark
     html!(
         div {
             h2 { (graph.title) " - " a href=(graph_embed_uri) { "embed url" } }
-            @if graph.d3_tick_format.is_some() { 
+            @if graph.d3_tick_format.is_some() {
                 graph-plot uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
             } @else {
                 graph-plot uri=(graph_data_uri) id=(graph_id) { }
@@ -122,7 +144,8 @@ pub async fn graph_ui(
         .get(dash_idx)
         .expect(&format!("No such dashboard {}", dash_idx))
         .graphs
-        .as_ref().expect("No graphs in this dashboard")
+        .as_ref()
+        .expect("No graphs in this dashboard")
         .get(graph_idx)
         .expect("No such graph");
     graph_component(dash_idx, graph_idx, graph)
@@ -134,10 +157,13 @@ pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) 
 }
 
 fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> maud::PreEscaped<String> {
-    let dash = config.get(dash_idx).expect(&format!("No such dashboard {}", dash_idx));
+    let dash = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard {}", dash_idx));
     let graph_iter = dash
         .graphs
-        .as_ref().expect("No graphs in this dashboard")
+        .as_ref()
+        .expect("No graphs in this dashboard")
         .iter()
         .enumerate()
         .collect::<Vec<(usize, &Graph)>>();

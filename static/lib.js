@@ -86,7 +86,6 @@ class GraphPlot extends HTMLElement {
         this.#duration = this.getAttribute('duration') || null;
         this.#step_duration = this.getAttribute('step-duration') || null;
         this.#d3TickFormat = this.getAttribute('d3-tick-format') || this.#d3TickFormat;
-        var self = this;
         this.reset();
     }
 

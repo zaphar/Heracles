@@ -22,7 +22,7 @@ use tracing::debug;
 
 use crate::dashboard::PlotMeta;
 
-use super::{QueryType, TimeSpan, QueryResult, DataPoint};
+use super::{DataPoint, QueryResult, QueryType, TimeSpan};
 
 #[derive(Debug)]
 pub struct PromQueryConn<'conn> {

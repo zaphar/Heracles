@@ -13,8 +13,8 @@
 // limitations under the License.
 use std::collections::HashMap;
 
-use serde::{Serialize, Deserialize};
 use chrono::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::dashboard::PlotMeta;
 
@@ -33,7 +33,6 @@ pub struct TimeSpan {
     pub duration: chrono::Duration,
     pub step_seconds: i64,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DataPoint {
@@ -92,5 +91,5 @@ impl std::fmt::Debug for QueryResult {
     }
 }
 
-pub use prom::*;
 pub use loki::*;
+pub use prom::*;

@@ -11,15 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::path::PathBuf;
 use anyhow;
 use axum::{self, extract::State, routing::*, Router};
 use clap::{self, Parser, ValueEnum};
-use dashboard::{Dashboard, prom_query_data};
+use dashboard::{prom_query_data, Dashboard};
+use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
-use tracing::{error, info};
 use tracing::Level;
+use tracing::{error, info};
 use tracing_subscriber::FmtSubscriber;
 
 mod dashboard;
@@ -101,7 +101,9 @@ async fn main() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http())
         .with_state(State(config.clone()));
     let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".to_string());
-    let listener = TcpListener::bind(socket_addr).await.expect("Unable to bind listener to address");
+    let listener = TcpListener::bind(socket_addr)
+        .await
+        .expect("Unable to bind listener to address");
     axum::serve(listener, router).await?;
     Ok(())
 }
