@@ -191,7 +191,7 @@ pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
 fn graph_lib_prelude() -> Markup {
     html! {
         script src="/js/plotly.js" { }
-        script defer src="/js/lib.js" {  }
+        script type="module" defer src="/js/lib.js" {  }
         link rel="stylesheet" href="/static/site.css" {  }
     }
 }

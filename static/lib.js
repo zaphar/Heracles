@@ -55,7 +55,7 @@ function getCssVariableValue(variableName) {
  *
  * @extends HTMLElement
  */
-class GraphPlot extends HTMLElement {
+export class GraphPlot extends HTMLElement {
     /** @type {?string} */
     #uri;
     /** @type {?number} */
@@ -457,7 +457,7 @@ class GraphPlot extends HTMLElement {
 GraphPlot.registerElement();
 
 /** Custom Element for selecting a timespan for the dashboard. */
-class SpanSelector extends HTMLElement {
+export class SpanSelector extends HTMLElement {
     /** @type {HTMLElement} */
     #targetNode = null;
     /** @type {HTMLInputElement} */
@@ -518,3 +518,4 @@ class SpanSelector extends HTMLElement {
 }
 
 SpanSelector.registerElement();
+
