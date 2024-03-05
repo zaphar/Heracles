@@ -359,6 +359,12 @@ export class GraphPlot extends HTMLElement {
                     this.populateFilterData(labels);
                 }
             }
+            if (subplot.Stream) {
+                for (const pair of subplot.Stream) {
+                    const labels = pair[0];
+                    this.populateFilterData(labels);
+                }
+            }
         }
     }
 
