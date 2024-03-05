@@ -15,10 +15,10 @@
 /**
  * @typedef PlotList
  * @type {object}
- * @property {?Array} Series
- * @property {?Array} Scalar
- * @property {?Array} StreamInstant
- * @property {?Array} Stream
+ * @property {Array=} Series
+ * @property {Array=} Scalar
+ * @property {Array<{timestamp: string, line: string}>=} StreamInstant - Timestamps are in seconds
+ * @property {Array<{timestamp: string, line: string}>=} Stream - Timestamps are in nanoseconds
  */
 
 /**
@@ -29,16 +29,43 @@
  * @property {Array<PlotList>} plots
  */
 
+/** 
+ * @typedef HeaderOrCell
+ * @type {object}
+ * @property {array} values
+ * @property {string=} fill
+ * @property {{width: number, color: string}=} line
+ * @property {{family: string, size: number, color: string }=} font
+ */
+
 /**
- * @typedef PlotTrace
+ * @typedef TableTrace
  * @type {object}
  * @property {string=} name
  * @property type {string}
  * @property {string=} mode
+ * @property {HeaderOrCell} headers
+ * @property {HeaderOrCell} cells - An Array of columns for the table.
+ * @property {string=} xaxis 
+ * @property {string=} yaxis 
+*/
+
+/**
+ * @typedef GraphTrace
+ * @type {object}
+ * @property {string=} name
+ * @property {string=} fill
+ * @property type {string}
+ * @property {string=} mode
  * @property {Array} x
  * @property {Array} y
- * @peroperty {string=} xaxis 
- * @peroperty {string=} yaxis 
+ * @property {string=} xaxis 
+ * @property {string=} yaxis 
+*/
+
+/**
+ * @typedef PlotTrace
+ * @type {(TableTrace|GraphTrace)}
 */
 
 /**
@@ -401,7 +428,7 @@ export class GraphPlot extends HTMLElement {
                     var yaxis = meta.yaxis || "y";
                     // https://plotly.com/javascript/reference/layout/yaxis/
                     const series = triple[2];
-                    const trace = {
+                    const trace = /** @type GraphTrace */({
                         type: "scatter",
                         mode: "lines+text",
                         x: [],
@@ -410,7 +437,7 @@ export class GraphPlot extends HTMLElement {
                         xaxis: "x",
                         yaxis: yaxis,
                         //yhoverformat: yaxis.tickformat,
-                    };
+                    });
                     if (meta.fill) {
                         trace.fill = meta.fill;
                     }
@@ -434,7 +461,7 @@ export class GraphPlot extends HTMLElement {
                     }
                     const meta = triple[1];
                     const series = triple[2];
-                    const trace = /** @type PlotTrace  */({
+                    const trace = /** @type GraphTrace  */({
                         type: "bar",
                         x: [],
                         y: [],
@@ -446,7 +473,42 @@ export class GraphPlot extends HTMLElement {
                     trace.x.push(trace.name);
                     traces.push(trace);
                 }
-            } // TODO(zaphar): subplot.Stream // log lines!!!
+            } else if (subplot.Stream) {
+                // TODO(zaphar): subplot.Stream // log lines!!!
+                const trace = /** @type TableTrace  */({
+                    type: "table",
+                    headers: {
+                        align: "left",
+                        values: ["Timestamp", "Log"]
+                    },
+                    cells: {
+                        align: "left",
+                        values: []
+                    },
+                });
+                const dateColumn = [];
+                const logColumn = [];
+                
+                loopStream: for (const pair of subplot.Stream) {
+                    const labels = pair[0];
+                    for (var label in labels) {
+                        var show = this.#filteredLabelSets[label];
+                        if (show && !show.includes(labels[label])) {
+                            continue loopStream;
+                        }
+                    }
+                    const lines = pair[1];
+                    // TODO(jwall): Headers
+                    for (const line of lines) {
+                        // For streams the timestamps are in nanoseconds
+                        dateColumn.push(new Date(line.timestamp / 1000000));
+                        logColumn.push(line.line);
+                    }
+                }
+                trace.cells.values.push(dateColumn);
+                trace.cells.values.push(logColumn);
+                traces.push(trace);
+            }
         }
         // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
         // @ts-ignore

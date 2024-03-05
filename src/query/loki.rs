@@ -22,7 +22,7 @@ use tracing::{debug, error};
 use super::{LogLine, QueryResult, QueryType, TimeSpan};
 
 // TODO(jwall): Should I allow non stream returns?
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum ResultType {
     /// Returned by query endpoints
     #[serde(rename = "vector")]
@@ -85,8 +85,10 @@ pub fn loki_to_sample(data: LokiData) -> QueryResult {
             }
             QueryResult::StreamInstant(values)
         }
+        // Stream types are nanoseconds. // Matrix types are seconds
         ResultType::Matrix | ResultType::Streams => {
             let mut values = Vec::with_capacity(data.result.len());
+            let multiple = (if data.result_type == ResultType::Matrix { 1000000 } else { 1 }) as f64;
             for result in data.result {
                 if let Some(value) = result.values {
                     values.push((
@@ -94,7 +96,7 @@ pub fn loki_to_sample(data: LokiData) -> QueryResult {
                         value
                             .into_iter()
                             .map(|(timestamp, line)| LogLine {
-                                timestamp: timestamp.parse::<f64>().expect("Invalid f64 type"),
+                                timestamp: multiple * timestamp.parse::<f64>().expect("Invalid f64 type"),
                                 line,
                             })
                             .collect(),

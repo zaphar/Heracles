@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::dashboard::{
-    loki_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation,
+    loki_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
 };
 use crate::query::QueryResult;
 
@@ -120,6 +120,18 @@ pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
         )
 }
 
+pub fn log_component(dash_idx: usize, log_idx: usize, log: &LogStream) -> Markup {
+    let log_id = format!("log-{}-{}", dash_idx, log_idx);
+    let log_data_uri = format!("/api/dash/{}/log/{}", dash_idx, log_idx);
+    let log_embed_uri = format!("/embed/dash/{}/log/{}", dash_idx, log_idx);
+    html! {
+        div {
+            h2 { (log.title) " - " a href=(log_embed_uri) { "embed url" } }
+            graph-plot uri=(log_data_uri) id=(log_id) { }
+        }
+    }
+}
+
 pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
     let graph_id = format!("graph-{}-{}", dash_idx, graph_idx);
     let graph_data_uri = format!("/api/dash/{}/graph/{}", dash_idx, graph_idx);
@@ -160,19 +172,35 @@ fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> maud::P
     let dash = config
         .get(dash_idx)
         .expect(&format!("No such dashboard {}", dash_idx));
-    let graph_iter = dash
+    let graph_components = if let Some(graphs) = dash
         .graphs
-        .as_ref()
-        .expect("No graphs in this dashboard")
-        .iter()
+        .as_ref() {
+        let graph_iter = graphs.iter()
         .enumerate()
         .collect::<Vec<(usize, &Graph)>>();
+        Some(html! {
+            @for (idx, graph) in &graph_iter {
+                (graph_component(dash_idx, *idx, *graph))
+            }
+        })
+    } else {
+        None
+    };
+    let log_components = if let Some(logs) = dash.logs.as_ref() {
+        let log_iter = logs.iter().enumerate().collect::<Vec<(usize, &LogStream)>>();
+        Some(html! {
+            @for (idx, log) in &log_iter {
+                (log_component(dash_idx, *idx, *log))
+            }
+        })
+    } else {
+        None
+    };
     html!(
         h1 { (dash.title) }
         span-selector class="row-flex" {}
-        @for (idx, graph) in &graph_iter {
-            (graph_component(dash_idx, *idx, *graph))
-        }
+        @if graph_components.is_some() { (graph_components.unwrap()) }
+        @if log_components.is_some() { (log_components.unwrap()) }
     )
 }
 
