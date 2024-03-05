@@ -33,7 +33,7 @@
  * @typedef HeaderOrCell
  * @type {object}
  * @property {array} values
- * @property {string=} fill
+ * @property {{color: string}=} fill
  * @property {{width: number, color: string}=} line
  * @property {{family: string, size: number, color: string }=} font
  */
@@ -42,7 +42,7 @@
  * @typedef TableTrace
  * @type {object}
  * @property {string=} name
- * @property type {string}
+ * @property {string} type 
  * @property {string=} mode
  * @property {HeaderOrCell} headers
  * @property {HeaderOrCell} cells - An Array of columns for the table.
@@ -483,13 +483,16 @@ export class GraphPlot extends HTMLElement {
                 // TODO(zaphar): subplot.Stream // log lines!!!
                 const trace = /** @type TableTrace  */({
                     type: "table",
+                    // TODO(zaphar): Column width?
                     headers: {
                         align: "left",
-                        values: ["Timestamp", "Log"]
+                        values: ["Timestamp", "Log"],
+                        fill: { color: layout.xaxis.gridColor }
                     },
                     cells: {
                         align: "left",
-                        values: []
+                        values: [],
+                        fill: { color: layout.paper_bgcolor }
                     },
                 });
                 const dateColumn = [];
