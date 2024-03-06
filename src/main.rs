@@ -96,6 +96,10 @@ async fn main() -> anyhow::Result<()> {
             "/embed/dash/:dash_idx/graph/:graph_idx",
             get(routes::graph_embed).with_state(State(config.clone())),
         )
+        .route(
+            "/embed/dash/:dash_idx/log/:graph_idx",
+            get(routes::log_embed).with_state(State(config.clone())),
+        )
         .route("/dash/:dash_idx", get(routes::dashboard_direct))
         .route("/", get(routes::index).with_state(State(config.clone())))
         .layer(TraceLayer::new_for_http())

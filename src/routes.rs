@@ -163,6 +163,21 @@ pub async fn graph_ui(
     graph_component(dash_idx, graph_idx, graph)
 }
 
+pub async fn log_ui(
+    State(config): State<Config>,
+    Path((dash_idx, log_idx)): Path<(usize, usize)>,
+) -> Markup {
+    let log = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard {}", dash_idx))
+        .logs
+        .as_ref()
+        .expect("No graphs in this dashboard")
+        .get(log_idx)
+        .expect("No such graph");
+    log_component(dash_idx, log_idx, log)
+}
+
 pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) -> Markup {
     // TODO(zaphar): Should do better http error reporting here.
     dash_elements(config, dash_idx)
@@ -236,6 +251,23 @@ pub async fn graph_embed(
             body {
                 (graph_lib_prelude())
                 (graph_ui(State(config.clone()), Path((dash_idx, graph_idx))).await)
+            }
+        }
+    }
+}
+
+pub async fn log_embed(
+    State(config): State<Config>,
+    Path((dash_idx, log_idx)): Path<(usize, usize)>,
+) -> Markup {
+    html! {
+        html {
+            head {
+                title { ("Heracles - Prometheus Unshackled") }
+            }
+            body {
+                (graph_lib_prelude())
+                (log_ui(State(config.clone()), Path((dash_idx, log_idx))).await)
             }
         }
     }
