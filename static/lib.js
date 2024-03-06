@@ -70,6 +70,41 @@
 */
 
 /**
+ * Map ansi terminal codes to html color codes.
+ * @param {string} line
+ */
+function ansiToHtml(line) {
+    const ansiToHtmlMap = {
+        // Map ANSI color codes to HTML color names or hex values
+        // We don't necessarily handle all the colors but this is enough to start.
+        "30": "black",
+        "31": "red",
+        "32": "green",
+        "33": "yellow",
+        "34": "blue",
+        "35": "magenta",
+        "36": "cyan",
+        "37": "white",
+        "39": "initial"
+    };
+
+    // NOTE(zaphar): Yes this is gross and I should really do a better parser but I'm lazy.
+    // Replace ANSI codes with HTML span elements styled with the corresponding color
+    return line.replace(/\x1b\[([0-9;]*)m/g, (match, p1) => {
+        const parts = p1.split(';'); // ANSI codes can be compounded, e.g., "1;31" for bold red
+        let styles = '';
+        for (let part of parts) {
+            if (ansiToHtmlMap[part]) {
+                // If the code is a color, map it to a CSS color
+                styles += `color: ${ansiToHtmlMap[part]};`;
+            }
+            // TODO(zaphar): Add more conditions here to handle other styles like bold or underline?
+        }
+        return styles ? `<span style="${styles}">` : '</span>';
+    }) + '</span>';
+}
+
+/**
  * Get's a css variable's value from the document.
  * @param {string} variableName - Name of the variable to get `--var-name`
  * @returns string
@@ -485,7 +520,7 @@ export class GraphPlot extends HTMLElement {
                 // element.
                 const trace = /** @type TableTrace  */({
                     type: "table",
-                    columnwidth: [10, 20, 70],
+                    columnwidth: [15, 20, 70],
                     headers: {
                         align: "left",
                         values: ["Timestamp","Label", "Log"],
@@ -517,9 +552,10 @@ export class GraphPlot extends HTMLElement {
                     for (const line of lines) {
                         // For streams the timestamps are in nanoseconds
                         // TODO(zaphar): We should improve the timstamp formatting a bit
-                        dateColumn.push(new Date(line.timestamp / 1000000));
+                        let timestamp = new Date(line.timestamp / 1000000);
+                        dateColumn.push(timestamp.toISOString());
                         metaColumn.push(labelsName);
-                        logColumn.push(line.line);
+                        logColumn.push(ansiToHtml(line.line));
                     }
                 }
                 trace.cells.values.push(dateColumn);
