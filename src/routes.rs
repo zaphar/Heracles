@@ -22,10 +22,12 @@ use axum::{
 
 // https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-use crate::dashboard::{Dashboard, Graph, GraphSpan, AxisDefinition, Orientation, query_data};
+use crate::dashboard::{
+    loki_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
+};
 use crate::query::QueryResult;
 
 type Config = State<Arc<Vec<Dashboard>>>;
@@ -37,17 +39,57 @@ pub struct GraphPayload {
     pub plots: Vec<QueryResult>,
 }
 
+// TODO(jwall): Should this be a completely different payload?
+pub async fn loki_query(
+    State(config): Config,
+    Path((dash_idx, loki_idx)): Path<(usize, usize)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Json<GraphPayload> {
+    let dash = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard index {}", dash_idx));
+    let log = dash
+        .logs
+        .as_ref()
+        .expect("No logs in this dashboard")
+        .get(loki_idx)
+        .expect(&format!("No such log query {}", loki_idx));
+    let plots = vec![loki_query_data(log, dash, query_to_graph_span(query))
+        .await
+        .expect("Unable to get log query results")];
+    Json(GraphPayload {
+        legend_orientation: None,
+        yaxes: log.yaxes.clone(),
+        plots,
+    })
+}
+
 pub async fn graph_query(
     State(config): Config,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Json<GraphPayload> {
     debug!("Getting data for query");
-    let dash = config.get(dash_idx).expect("No such dashboard index");
+    let dash = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard index {}", dash_idx));
     let graph = dash
         .graphs
+        .as_ref()
+        .expect("No graphs in this dashboard")
         .get(graph_idx)
         .expect(&format!("No such graph in dasboard {}", dash_idx));
+    let plots = prom_query_data(graph, dash, query_to_graph_span(query))
+        .await
+        .expect("Unable to get query results");
+    Json(GraphPayload {
+        legend_orientation: graph.legend_orientation.clone(),
+        yaxes: graph.yaxes.clone(),
+        plots,
+    })
+}
+
+fn query_to_graph_span(query: HashMap<String, String>) -> Option<GraphSpan> {
     let query_span = {
         if query.contains_key("end")
             && query.contains_key("duration")
@@ -62,16 +104,32 @@ pub async fn graph_query(
             None
         }
     };
-    let plots = query_data(graph, dash, query_span).await.expect("Unable to get query results");
-    Json(GraphPayload{legend_orientation: graph.legend_orientation.clone(), yaxes: graph.yaxes.clone(), plots})
+    query_span
 }
 
 pub fn mk_api_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     // Query routes
-    Router::new().route(
-        "/dash/:dash_idx/graph/:graph_idx",
-        get(graph_query).with_state(config),
-    )
+    Router::new()
+        .route(
+            "/dash/:dash_idx/graph/:graph_idx",
+            get(graph_query).with_state(config.clone()),
+        )
+        .route(
+            "/dash/:dash_idx/log/:log_idx",
+            get(loki_query).with_state(config),
+        )
+}
+
+pub fn log_component(dash_idx: usize, log_idx: usize, log: &LogStream) -> Markup {
+    let log_id = format!("log-{}-{}", dash_idx, log_idx);
+    let log_data_uri = format!("/api/dash/{}/log/{}", dash_idx, log_idx);
+    let log_embed_uri = format!("/embed/dash/{}/log/{}", dash_idx, log_idx);
+    html! {
+        div {
+            h2 { (log.title) " - " a href=(log_embed_uri) { "embed url" } }
+            graph-plot uri=(log_data_uri) id=(log_id) { }
+        }
+    }
 }
 
 pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Markup {
@@ -81,10 +139,10 @@ pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Mark
     html!(
         div {
             h2 { (graph.title) " - " a href=(graph_embed_uri) { "embed url" } }
-            @if graph.d3_tick_format.is_some() { 
-                timeseries-graph uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
+            @if graph.d3_tick_format.is_some() {
+                graph-plot uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
             } @else {
-                timeseries-graph uri=(graph_data_uri) id=(graph_id) { }
+                graph-plot uri=(graph_data_uri) id=(graph_id) { }
             }
         }
     )
@@ -96,11 +154,28 @@ pub async fn graph_ui(
 ) -> Markup {
     let graph = config
         .get(dash_idx)
-        .expect("No such dashboard")
+        .expect(&format!("No such dashboard {}", dash_idx))
         .graphs
+        .as_ref()
+        .expect("No graphs in this dashboard")
         .get(graph_idx)
         .expect("No such graph");
     graph_component(dash_idx, graph_idx, graph)
+}
+
+pub async fn log_ui(
+    State(config): State<Config>,
+    Path((dash_idx, log_idx)): Path<(usize, usize)>,
+) -> Markup {
+    let log = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard {}", dash_idx))
+        .logs
+        .as_ref()
+        .expect("No graphs in this dashboard")
+        .get(log_idx)
+        .expect("No such graph");
+    log_component(dash_idx, log_idx, log)
 }
 
 pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) -> Markup {
@@ -109,18 +184,38 @@ pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) 
 }
 
 fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> maud::PreEscaped<String> {
-    let dash = config.get(dash_idx).expect("No such dashboard");
-    let graph_iter = dash
+    let dash = config
+        .get(dash_idx)
+        .expect(&format!("No such dashboard {}", dash_idx));
+    let graph_components = if let Some(graphs) = dash
         .graphs
-        .iter()
+        .as_ref() {
+        let graph_iter = graphs.iter()
         .enumerate()
         .collect::<Vec<(usize, &Graph)>>();
+        Some(html! {
+            @for (idx, graph) in &graph_iter {
+                (graph_component(dash_idx, *idx, *graph))
+            }
+        })
+    } else {
+        None
+    };
+    let log_components = if let Some(logs) = dash.logs.as_ref() {
+        let log_iter = logs.iter().enumerate().collect::<Vec<(usize, &LogStream)>>();
+        Some(html! {
+            @for (idx, log) in &log_iter {
+                (log_component(dash_idx, *idx, *log))
+            }
+        })
+    } else {
+        None
+    };
     html!(
         h1 { (dash.title) }
         span-selector class="row-flex" {}
-        @for (idx, graph) in &graph_iter {
-            (graph_component(dash_idx, *idx, *graph))
-        }
+        @if graph_components.is_some() { (graph_components.unwrap()) }
+        @if log_components.is_some() { (log_components.unwrap()) }
     )
 }
 
@@ -139,7 +234,7 @@ pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
 fn graph_lib_prelude() -> Markup {
     html! {
         script src="/js/plotly.js" { }
-        script defer src="/js/lib.js" {  }
+        script type="module" defer src="/js/lib.js" {  }
         link rel="stylesheet" href="/static/site.css" {  }
     }
 }
@@ -156,6 +251,23 @@ pub async fn graph_embed(
             body {
                 (graph_lib_prelude())
                 (graph_ui(State(config.clone()), Path((dash_idx, graph_idx))).await)
+            }
+        }
+    }
+}
+
+pub async fn log_embed(
+    State(config): State<Config>,
+    Path((dash_idx, log_idx)): Path<(usize, usize)>,
+) -> Markup {
+    html! {
+        html {
+            head {
+                title { ("Heracles - Prometheus Unshackled") }
+            }
+            body {
+                (graph_lib_prelude())
+                (log_ui(State(config.clone()), Path((dash_idx, log_idx))).await)
             }
         }
     }

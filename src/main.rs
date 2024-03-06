@@ -11,15 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::path::PathBuf;
 use anyhow;
 use axum::{self, extract::State, routing::*, Router};
 use clap::{self, Parser, ValueEnum};
-use dashboard::{Dashboard, query_data};
+use dashboard::{prom_query_data, Dashboard};
+use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
-use tracing::{error, info};
 use tracing::Level;
+use tracing::{error, info};
 use tracing_subscriber::FmtSubscriber;
 
 mod dashboard;
@@ -49,12 +49,14 @@ struct Cli {
 }
 
 async fn validate(dash: &Dashboard) -> anyhow::Result<()> {
-    for graph in dash.graphs.iter() {
-        let data = query_data(graph, &dash, None).await;
-        if data.is_err() {
-            error!(err=?data, "Invalid dashboard query or queries");
+    if let Some(ref graphs) = dash.graphs {
+        for graph in graphs.iter() {
+            let data = prom_query_data(graph, &dash, None).await;
+            if data.is_err() {
+                error!(err=?data, "Invalid dashboard query or queries");
+            }
+            let _ = data?;
         }
-        let _ = data?;
     }
     return Ok(());
 }
@@ -94,12 +96,18 @@ async fn main() -> anyhow::Result<()> {
             "/embed/dash/:dash_idx/graph/:graph_idx",
             get(routes::graph_embed).with_state(State(config.clone())),
         )
+        .route(
+            "/embed/dash/:dash_idx/log/:graph_idx",
+            get(routes::log_embed).with_state(State(config.clone())),
+        )
         .route("/dash/:dash_idx", get(routes::dashboard_direct))
         .route("/", get(routes::index).with_state(State(config.clone())))
         .layer(TraceLayer::new_for_http())
         .with_state(State(config.clone()));
     let socket_addr = args.listen.unwrap_or("127.0.0.1:3000".to_string());
-    let listener = TcpListener::bind(socket_addr).await.expect("Unable to bind listener to address");
+    let listener = TcpListener::bind(socket_addr)
+        .await
+        .expect("Unable to bind listener to address");
     axum::serve(listener, router).await?;
     Ok(())
 }

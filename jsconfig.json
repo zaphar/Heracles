@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "target": "es2022",
+        "noImplicitThis": true,
+        "checkJs": true,
+        "allowJs": true
+    },
+    "include": [
+        "static/*.js"
+    ]
+}

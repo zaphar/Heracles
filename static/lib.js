@@ -12,25 +12,145 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/**
+ * @typedef PlotList
+ * @type {object}
+ * @property {Array=} Series
+ * @property {Array=} Scalar
+ * @property {Array<{timestamp: string, line: string}>=} StreamInstant - Timestamps are in seconds
+ * @property {Array<{timestamp: string, line: string}>=} Stream - Timestamps are in nanoseconds
+ */
+
+/**
+ * @typedef QueryData
+ * @type {object}
+ * @property {object} yaxes
+ * @property {?string} legend_orientation
+ * @property {Array<PlotList>} plots
+ */
+
+/** 
+ * @typedef HeaderOrCell
+ * @type {object}
+ * @property {array} values
+ * @property {{color: string}=} fill
+ * @property {object=} font
+ * @property {string=} font.family
+ * @property {number=} font.size
+ * @property {string=} font.color
+ * @property {{width: number, color: string}=} line
+ * @property {Array<number>=} columnwidth
+ */
+
+/**
+ * @typedef TableTrace
+ * @type {object}
+ * @property {string=} name
+ * @property {string} type 
+ * @property {string=} mode
+ * @property {HeaderOrCell} header
+ * @property {HeaderOrCell} cells - An Array of columns for the table.
+ * @property {string=} xaxis 
+ * @property {string=} yaxis 
+*/
+
+/**
+ * @typedef GraphTrace
+ * @type {object}
+ * @property {string=} name
+ * @property {string=} fill
+ * @property type {string}
+ * @property {string=} mode
+ * @property {Array} x
+ * @property {Array} y
+ * @property {string=} xaxis 
+ * @property {string=} yaxis 
+*/
+
+/**
+ * @typedef PlotTrace
+ * @type {(TableTrace|GraphTrace)}
+*/
+
+/**
+ * Map ansi terminal codes to html color codes.
+ * @param {string} line
+ */
+function ansiToHtml(line) {
+    const ansiToHtmlMap = {
+        // Map ANSI color codes to HTML color names or hex values
+        // We don't necessarily handle all the colors but this is enough to start.
+        "30": "black",
+        "31": "red",
+        "32": "green",
+        "33": "yellow",
+        "34": "blue",
+        "35": "magenta",
+        "36": "cyan",
+        "37": "white",
+        "39": "initial"
+    };
+
+    // NOTE(zaphar): Yes this is gross and I should really do a better parser but I'm lazy.
+    // Replace ANSI codes with HTML span elements styled with the corresponding color
+    return line.replace(/\x1b\[([0-9;]*)m/g, (match, p1) => {
+        const parts = p1.split(';'); // ANSI codes can be compounded, e.g., "1;31" for bold red
+        let styles = '';
+        for (let part of parts) {
+            if (ansiToHtmlMap[part]) {
+                // If the code is a color, map it to a CSS color
+                styles += `color: ${ansiToHtmlMap[part]};`;
+            }
+            // TODO(zaphar): Add more conditions here to handle other styles like bold or underline?
+        }
+        return styles ? `<span style="${styles}">` : '</span>';
+    }) + '</span>';
+}
+
+/**
+ * Get's a css variable's value from the document.
+ * @param {string} variableName - Name of the variable to get `--var-name`
+ * @returns string
+ */
 function getCssVariableValue(variableName) {
     return getComputedStyle(document.documentElement).getPropertyValue(variableName);
 }
 
-class TimeseriesGraph extends HTMLElement {
+/**
+ * Custom element for showing a plotly graph.
+ *
+ * @extends HTMLElement
+ */
+export class GraphPlot extends HTMLElement {
+    /** @type {?string} */
     #uri;
+    /** @type {?number} */
     #width;
+    /** @type {?number} */
     #height;
+    /** @type {?number} */
     #intervalId;
+    /** @type {?number} */
     #pollSeconds;
+    /** @type {?string} */
     #end;
+    /** @type {?number} */
     #duration;
+    /** @type {?string} */
     #step_duration;
+    /** @type {?string} */
     #d3TickFormat = "~s";
+    /** @type {?HTMLDivElement} */
     #targetNode = null;
+    /** @type {?HTMLElement} */
     #menuContainer = null;
+    /** @type {Object<string, HTMLSelectElement>} */
     #filterSelectElements = {};
+    /** @type {Object<string, Array<string>>} */
     #filterLabels = {};
+    /** @type {Object<string, Array<string>>} */
     #filteredLabelSets = {};
+
     constructor() {
         super();
         this.#width = 800;
@@ -45,25 +165,32 @@ class TimeseriesGraph extends HTMLElement {
 
     static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'd3-tick-format'];
 
+    /**
+     * Callback for attributes changes.
+     *
+     * @param {string} name       - The name of the attribute.
+     * @param {?string} _oldValue - The old value for the attribute
+     * @param {?string} newValue  - The new value for the attribute
+     */
     attributeChangedCallback(name, _oldValue, newValue) {
         switch (name) {
             case 'uri':
                 this.#uri = newValue;
                 break;
             case 'width':
-                this.#width = newValue;
+                this.#width = Number(newValue);
                 break;
             case 'height':
-                this.#height = newValue;
+                this.#height = Number(newValue);
                 break;
             case 'poll-seconds':
-                this.#pollSeconds = newValue;
+                this.#pollSeconds = Number(newValue);
                 break;
             case 'end':
                 this.#end = newValue;
                 break;
             case 'duration':
-                this.#duration = newValue;
+                this.#duration = Number(newValue);
                 break;
             case 'step-duration':
                 this.#step_duration = newValue;
@@ -79,14 +206,13 @@ class TimeseriesGraph extends HTMLElement {
 
     connectedCallback() {
         this.#uri = this.getAttribute('uri') || this.#uri;
-        this.#width = this.getAttribute('width') || this.#width;
-        this.#height = this.getAttribute('height') || this.#height;
-        this.#pollSeconds = this.getAttribute('poll-seconds') || this.#pollSeconds;
+        this.#width = Number(this.getAttribute('width') || this.#width);
+        this.#height = Number(this.getAttribute('height') || this.#height);
+        this.#pollSeconds = Number(this.getAttribute('poll-seconds') || this.#pollSeconds);
         this.#end = this.getAttribute('end') || null;
-        this.#duration = this.getAttribute('duration') || null;
+        this.#duration = Number(this.getAttribute('duration')) || null;
         this.#step_duration = this.getAttribute('step-duration') || null;
         this.#d3TickFormat = this.getAttribute('d3-tick-format') || this.#d3TickFormat;
-        var self = this;
         this.reset();
     }
 
@@ -94,12 +220,19 @@ class TimeseriesGraph extends HTMLElement {
         this.stopInterval()
     }
 
-    static elementName = "timeseries-graph";
+    static elementName = "graph-plot";
 
+    /* 
+     * Get's the target node for placing the plotly graph.
+     *
+     * @returns {?HTMLDivElement}
+     */
     getTargetNode() {
         return this.#targetNode;
     }
 
+    /**
+     */
     stopInterval() {
         if (this.#intervalId) {
             clearInterval(this.#intervalId);
@@ -107,6 +240,10 @@ class TimeseriesGraph extends HTMLElement {
         }
     }
 
+    /**
+     * Resets the entire graph and then restarts polling.
+     * @param {boolean=} updateOnly
+     */
     reset(updateOnly) {
         var self = this;
         self.stopInterval()
@@ -121,12 +258,18 @@ class TimeseriesGraph extends HTMLElement {
         });
     }
 
+    /** Registers the custom element if it doesn't already exist */
     static registerElement() {
-        if (!customElements.get(TimeseriesGraph.elementName)) {
-            customElements.define(TimeseriesGraph.elementName, TimeseriesGraph);
+        if (!customElements.get(GraphPlot.elementName)) {
+            customElements.define(GraphPlot.elementName, GraphPlot);
         }
     }
 
+    /**
+     * Returns the uri formatted with any query strings if necessary.
+     *
+     * @returns {string}
+     */
     getUri() {
         if (this.#end && this.#duration && this.#step_duration) {
             return this.#uri + "?end=" + this.#end + "&duration=" + this.#duration + "&step_duration=" + this.#step_duration;
@@ -135,6 +278,11 @@ class TimeseriesGraph extends HTMLElement {
         }
     }
 
+    /**
+     * Returns the data from an api call.
+     *
+     * @return {Promise<QueryData>}
+     */
     async fetchData() {
         // TODO(zaphar): Can we do some massaging on these
         // to get the full set of labels and possible values?
@@ -143,6 +291,12 @@ class TimeseriesGraph extends HTMLElement {
         return data;
     }
 
+    /** 
+     * Formats the name for the plot trace.
+     * @param {{name_format: ?string}} meta
+     * @param {Map<string, string>} labels
+     * @return string
+     */
     formatName(meta, labels) {
         var name = "";
         const formatter = meta.name_format
@@ -158,6 +312,9 @@ class TimeseriesGraph extends HTMLElement {
         return name;
     }
 
+    /**
+     * @param {Object<string, string>} labels
+     */
     populateFilterData(labels) {
         for (var key in labels) {
             const label = this.#filterLabels[key];
@@ -171,13 +328,18 @@ class TimeseriesGraph extends HTMLElement {
         }
     }
 
+    /**
+      * @param {string} key
+      * @returns {HTMLDivElement}
+      */
     buildSelectElement(key) {
         // TODO(jwall): Should we have a select all?
         var id = key + "-select" + Math.random();
         const element = document.createElement("div");
         const select = document.createElement("select");
         select.setAttribute("name", id);
-        select.setAttribute("multiple", true);
+        // TODO(jwall): This is how you set boolean attributes. Use the attribute named... :-(
+        select.setAttribute("multiple", "multiple");
         const optElement = document.createElement("option");
         const optValue = "Select " + key;
         optElement.innerText = optValue;
@@ -185,7 +347,7 @@ class TimeseriesGraph extends HTMLElement {
         for (var opt of this.#filterLabels[key]) {
             const optElement = document.createElement("option");
             optElement.setAttribute("value", opt);
-            optElement.setAttribute("selected", true);
+            optElement.setAttribute("selected", "selected");
             optElement.innerText = opt;
             select.appendChild(optElement);
         }
@@ -194,7 +356,7 @@ class TimeseriesGraph extends HTMLElement {
         select.onchange = function(evt) {
             evt.stopPropagation();
             var filteredValues = [];
-            for (var opt of evt.target.selectedOptions) {
+            for (var opt of /** @type {HTMLSelectElement} */(evt.target).selectedOptions) {
                 filteredValues.push(opt.getAttribute("value"));
             }
             self.#filteredLabelSets[key] = filteredValues;
@@ -218,6 +380,9 @@ class TimeseriesGraph extends HTMLElement {
         this.#menuContainer.replaceChildren(...children);
     }
 
+    /**
+      * @param {QueryData} graph
+      */
     getLabelsForData(graph) {
         const data = graph.plots;
         for (var subplot of data) {
@@ -230,6 +395,12 @@ class TimeseriesGraph extends HTMLElement {
             if (subplot.Scalar) {
                 for (const triple of subplot.Scalar) {
                     const labels = triple[0];
+                    this.populateFilterData(labels);
+                }
+            }
+            if (subplot.Stream) {
+                for (const pair of subplot.Stream) {
+                    const labels = pair[0];
                     this.populateFilterData(labels);
                 }
             }
@@ -248,6 +419,11 @@ class TimeseriesGraph extends HTMLElement {
         };
     }
 
+    /**
+     * Update the graph with new data.
+     *
+     * @param {?QueryData=} maybeGraph
+     */
     async updateGraph(maybeGraph) {
         var graph = maybeGraph;
         if (!graph) {
@@ -258,13 +434,13 @@ class TimeseriesGraph extends HTMLElement {
         var layout = {
             displayModeBar: false,
             responsive: true,
-            plot_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            plot_bgcolor: getCssVariableValue('--plot-background-color').trim(),
             paper_bgcolor: getCssVariableValue('--paper-background-color').trim(),
             font: {
                 color: getCssVariableValue('--text-color').trim()
             },
             xaxis: {
-                gridcolor: getCssVariableValue("--accent-color")
+                gridcolor: getCssVariableValue("--grid-line-color")
             },
             legend: {
                 orientation: 'v'
@@ -276,13 +452,12 @@ class TimeseriesGraph extends HTMLElement {
         var nextYaxis = this.yaxisNameGenerator();
         for (const yaxis of yaxes) {
             yaxis.tickformat = yaxis.tickformat || this.#d3TickFormat;
-            yaxis.gridColor = getCssVariableValue("--accent-color");
+            yaxis.gridColor = getCssVariableValue("--grid-line-color");
             layout[nextYaxis()] = yaxis;
         }
-        var traces = [];
+        var traces = /** @type {Array<PlotTrace>} */ ([]);
         for (var subplot_idx in data) {
             const subplot = data[subplot_idx];
-            const subplotCount = Number(subplot_idx) + 1;
             var nextYaxis = this.yaxisNameGenerator();
             if (subplot.Series) {
                 // https://plotly.com/javascript/reference/scatter/
@@ -298,7 +473,7 @@ class TimeseriesGraph extends HTMLElement {
                     var yaxis = meta.yaxis || "y";
                     // https://plotly.com/javascript/reference/layout/yaxis/
                     const series = triple[2];
-                    var trace = {
+                    const trace = /** @type GraphTrace */({
                         type: "scatter",
                         mode: "lines+text",
                         x: [],
@@ -307,7 +482,7 @@ class TimeseriesGraph extends HTMLElement {
                         xaxis: "x",
                         yaxis: yaxis,
                         //yhoverformat: yaxis.tickformat,
-                    };
+                    });
                     if (meta.fill) {
                         trace.fill = meta.fill;
                     }
@@ -331,32 +506,88 @@ class TimeseriesGraph extends HTMLElement {
                     }
                     const meta = triple[1];
                     const series = triple[2];
-                    var trace = {
+                    const trace = /** @type GraphTrace  */({
                         type: "bar",
                         x: [],
                         y: [],
                         yhoverformat: meta["d3_tick_format"],
-                    };
+                    });
                     var name = this.formatName(meta, labels);
                     if (name) { trace.name = name; }
                     trace.y.push(series.value);
                     trace.x.push(trace.name);
                     traces.push(trace);
                 }
+            } else if (subplot.Stream) {
+                // TODO(jwall): It would be nice if scroll behavior would handle replots better.
+                // TODO(jwall): It's possible that this should actually be a separate custom
+                // element.
+                const trace = /** @type TableTrace  */({
+                    type: "table",
+                    columnwidth: [15, 20, 70],
+                    header: {
+                        align: "left",
+                        values: ["Timestamp","Labels", "Log"],
+                        fill: { color: layout.xaxis.paper_bgcolor },
+                        font: { color: getCssVariableValue('--text-color').trim() }
+                    },
+                    cells: {
+                        align: "left",
+                        values: [],
+                        fill: { color: layout.plot_bgcolor }
+                    },
+                });
+                const dateColumn = [];
+                const metaColumn = [];
+                const logColumn = [];
+                
+                loopStream: for (const pair of subplot.Stream) {
+                    const labels = pair[0];
+                    var labelList = [];
+                    for (var label in labels) {
+                        var show = this.#filteredLabelSets[label];
+                        if (show && !show.includes(labels[label])) {
+                            continue loopStream;
+                        }
+                        labelList.push(`${label}:${labels[label]}`);
+                    }
+                    const labelsName = labelList.join("<br>");
+                    const lines = pair[1];
+                    // TODO(jwall): Headers
+                    for (const line of lines) {
+                        // For streams the timestamps are in nanoseconds
+                        // TODO(zaphar): We should improve the timstamp formatting a bit
+                        let timestamp = new Date(line.timestamp / 1000000);
+                        dateColumn.push(timestamp.toISOString());
+                        metaColumn.push(labelsName);
+                        logColumn.push(ansiToHtml(line.line));
+                    }
+                }
+                trace.cells.values.push(dateColumn);
+                trace.cells.values.push(metaColumn);
+                trace.cells.values.push(logColumn);
+                traces.push(trace);
             }
         }
         // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
+        // @ts-ignore
         Plotly.react(this.getTargetNode(), traces, layout, null);
     }
 }
 
-TimeseriesGraph.registerElement();
+GraphPlot.registerElement();
 
-class SpanSelector extends HTMLElement {
+/** Custom Element for selecting a timespan for the dashboard. */
+export class SpanSelector extends HTMLElement {
+    /** @type {HTMLElement} */
     #targetNode = null;
+    /** @type {HTMLInputElement} */
     #endInput = null;
+    /** @type {HTMLInputElement} */
     #durationInput = null;
+    /** @type {HTMLInputElement} */
     #stepDurationInput = null;
+    /** @type {HTMLButtonElement} */
     #updateInput = null
 
     constructor() {
@@ -388,8 +619,9 @@ class SpanSelector extends HTMLElement {
         this.#updateInput.onclick = undefined;
     }
 
+    /** Updates all the graphs on the dashboard with the new timespan. */
     updateGraphs() {
-        for (var node of document.getElementsByTagName(TimeseriesGraph.elementName)) {
+        for (var node of document.getElementsByTagName(GraphPlot.elementName)) {
             node.setAttribute('end', this.#endInput.value);
             node.setAttribute('duration', this.#durationInput.value);
             node.setAttribute('step-duration', this.#stepDurationInput.value);
@@ -398,6 +630,7 @@ class SpanSelector extends HTMLElement {
 
     static elementName = "span-selector";
 
+    /** Register the element if it doesn't exist */
     static registerElement() {
         if (!customElements.get(SpanSelector.elementName)) {
             customElements.define(SpanSelector.elementName, SpanSelector);
@@ -406,3 +639,4 @@ class SpanSelector extends HTMLElement {
 }
 
 SpanSelector.registerElement();
+

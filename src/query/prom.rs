@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-// Copyright 2023 Jeremy Wall
+// Copyright 2024 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,31 +11,21 @@ use std::collections::HashMap;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::collections::HashMap;
+
 use chrono::prelude::*;
 use prometheus_http_query::{
     response::{Data, PromqlResult},
     Client,
 };
-use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::dashboard::PlotMeta;
 
-#[derive(Deserialize, Clone, Debug)]
-pub enum QueryType {
-    Range,
-    Scalar,
-}
+use super::{DataPoint, QueryResult, QueryType, TimeSpan};
 
 #[derive(Debug)]
-pub struct TimeSpan {
-    pub end: DateTime<Utc>,
-    pub duration: chrono::Duration,
-    pub step_seconds: i64,
-}
-
-#[derive(Debug)]
-pub struct QueryConn<'conn> {
+pub struct PromQueryConn<'conn> {
     source: &'conn str,
     query: &'conn str,
     span: Option<TimeSpan>,
@@ -45,8 +33,13 @@ pub struct QueryConn<'conn> {
     pub meta: PlotMeta,
 }
 
-impl<'conn> QueryConn<'conn> {
-    pub fn new<'a: 'conn>(source: &'a str, query: &'a str, query_type: QueryType, meta: PlotMeta) -> Self {
+impl<'conn> PromQueryConn<'conn> {
+    pub fn new<'a: 'conn>(
+        source: &'a str,
+        query: &'a str,
+        query_type: QueryType,
+        meta: PlotMeta,
+    ) -> Self {
         Self {
             source,
             query,
@@ -113,42 +106,7 @@ impl<'conn> QueryConn<'conn> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DataPoint {
-    timestamp: f64,
-    value: f64,
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum QueryResult {
-    Series(Vec<(HashMap<String, String>, PlotMeta, Vec<DataPoint>)>),
-    Scalar(Vec<(HashMap<String, String>, PlotMeta, DataPoint)>),
-}
-
-impl std::fmt::Debug for QueryResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            QueryResult::Series(v) => {
-                f.write_fmt(format_args!("Series trace count = {}", v.len()))?;
-                for (idx, (tags, meta, trace)) in v.iter().enumerate() {
-                    f.write_fmt(format_args!(
-                        "; {}: tags {:?} meta: {:?} datapoint count = {};",
-                        idx,
-                        tags,
-                        meta,
-                        trace.len()
-                    ))?;
-                }
-            }
-            QueryResult::Scalar(v) => {
-                f.write_fmt(format_args!("{} traces", v.len()))?;
-            }
-        }
-        Ok(())
-    }
-}
-
-pub fn to_samples(data: Data, meta: PlotMeta) -> QueryResult {
+pub fn prom_to_samples(data: Data, meta: PlotMeta) -> QueryResult {
     match data {
         Data::Matrix(mut range) => QueryResult::Series(
             range

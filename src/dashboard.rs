@@ -13,14 +13,16 @@
 // limitations under the License.
 use std::path::Path;
 
+use anyhow::Result;
 use chrono::prelude::*;
 use chrono::Duration;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_yaml;
 use tracing::{debug, error};
-use anyhow::Result;
 
-use crate::query::{QueryConn, QueryType, QueryResult, to_samples};
+use crate::query::{
+    loki_to_sample, prom_to_samples, LokiConn, PromQueryConn, QueryResult, QueryType,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlotMeta {
@@ -73,7 +75,8 @@ pub struct GraphSpan {
 #[derive(Deserialize)]
 pub struct Dashboard {
     pub title: String,
-    pub graphs: Vec<Graph>,
+    pub graphs: Option<Vec<Graph>>,
+    pub logs: Option<Vec<LogStream>>,
     pub span: Option<GraphSpan>,
 }
 
@@ -92,6 +95,8 @@ pub enum Orientation {
     Vertical,
 }
 
+// NOTE(zapher): These two structs look repetitive but we haven't hit the rule of three yet.
+// If we do then it might be time to restructure them a bit.
 #[derive(Deserialize)]
 pub struct Graph {
     pub title: String,
@@ -103,19 +108,47 @@ pub struct Graph {
     pub d3_tick_format: Option<String>,
 }
 
-pub async fn query_data(graph: &Graph, dash: &Dashboard, query_span: Option<GraphSpan>) -> Result<Vec<QueryResult>> {
+#[derive(Deserialize)]
+pub struct LogStream {
+    pub title: String,
+    pub legend_orientation: Option<Orientation>,
+    pub source: String,
+    pub yaxes: Vec<AxisDefinition>,
+    pub query: String,
+    pub span: Option<GraphSpan>,
+    pub limit: Option<usize>,
+    pub query_type: QueryType,
+}
+
+pub async fn prom_query_data(
+    graph: &Graph,
+    dash: &Dashboard,
+    query_span: Option<GraphSpan>,
+) -> Result<Vec<QueryResult>> {
     let connections = graph.get_query_connections(&dash.span, &query_span);
     let mut data = Vec::new();
     for conn in connections {
-        data.push(to_samples(
-            conn.get_results()
-                .await?
-                .data()
-                .clone(),
+        data.push(prom_to_samples(
+            conn.get_results().await?.data().clone(),
             conn.meta,
         ));
     }
     Ok(data)
+}
+
+pub async fn loki_query_data(
+    stream: &LogStream,
+    dash: &Dashboard,
+    query_span: Option<GraphSpan>,
+) -> Result<QueryResult> {
+    let conn = stream.get_query_connection(&dash.span, &query_span);
+    let response = conn.get_results().await?;
+    if response.status == "success" {
+        Ok(loki_to_sample(response.data))
+    } else {
+        // TODO(jwall): Better error handling than this
+        panic!("Loki query status: {}", response.status)
+    }
 }
 
 fn duration_from_string(duration_string: &str) -> Option<Duration> {
@@ -172,15 +205,20 @@ impl Graph {
         &'graph self,
         graph_span: &'graph Option<GraphSpan>,
         query_span: &'graph Option<GraphSpan>,
-    ) -> Vec<QueryConn<'conn>> {
+    ) -> Vec<PromQueryConn<'conn>> {
         let mut conns = Vec::new();
         for plot in self.plots.iter() {
             debug!(
                 query = plot.query,
                 source = plot.source,
-                "Getting query connection for graph"
+                "Getting query connection for graph",
             );
-            let mut conn = QueryConn::new(&plot.source, &plot.query, self.query_type.clone(), plot.meta.clone());
+            let mut conn = PromQueryConn::new(
+                &plot.source,
+                &plot.query,
+                self.query_type.clone(),
+                plot.meta.clone(),
+            );
             // Query params take precendence over all other settings. Then graph settings take
             // precedences and finally the dashboard settings take precendence
             if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
@@ -193,6 +231,34 @@ impl Graph {
             conns.push(conn);
         }
         conns
+    }
+}
+
+impl LogStream {
+    pub fn get_query_connection<'conn, 'stream: 'conn>(
+        &'stream self,
+        graph_span: &'stream Option<GraphSpan>,
+        query_span: &'stream Option<GraphSpan>,
+    ) -> LokiConn<'conn> {
+        debug!(
+            query = self.query,
+            source = self.source,
+            "Getting query connection for log streams",
+        );
+        let mut conn = LokiConn::new(&self.source, &self.query, self.query_type.clone());
+        // Query params take precendence over all other settings. Then graph settings take
+        // precedences and finally the dashboard settings take precendence
+        if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
+            conn = conn.with_span(end, duration, step_duration);
+        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
+            conn = conn.with_span(end, duration, step_duration);
+        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+            conn = conn.with_span(end, duration, step_duration);
+        }
+        if let Some(limit) = self.limit {
+            conn = conn.with_limit(limit);
+        }
+        conn
     }
 }
 
