@@ -36,6 +36,7 @@
  * @property {{color: string}=} fill
  * @property {{width: number, color: string}=} line
  * @property {{family: string, size: number, color: string }=} font
+ * @property {Array<number>=} columnwidth
  */
 
 /**
@@ -480,13 +481,14 @@ export class GraphPlot extends HTMLElement {
                     traces.push(trace);
                 }
             } else if (subplot.Stream) {
-                // TODO(zaphar): subplot.Stream // log lines!!!
+                // TODO(jwall): It's possible that this should actually be a separate custom
+                // element.
                 const trace = /** @type TableTrace  */({
                     type: "table",
-                    // TODO(zaphar): Column width?
+                    columnwidth: [10, 20, 70],
                     headers: {
                         align: "left",
-                        values: ["Timestamp", "Log"],
+                        values: ["Timestamp","Label", "Log"],
                         fill: { color: layout.xaxis.gridColor }
                     },
                     cells: {
@@ -496,25 +498,32 @@ export class GraphPlot extends HTMLElement {
                     },
                 });
                 const dateColumn = [];
+                const metaColumn = [];
                 const logColumn = [];
                 
                 loopStream: for (const pair of subplot.Stream) {
                     const labels = pair[0];
+                    var labelList = [];
                     for (var label in labels) {
                         var show = this.#filteredLabelSets[label];
                         if (show && !show.includes(labels[label])) {
                             continue loopStream;
                         }
+                        labelList.push(`${label}:${labels[label]}`);
                     }
+                    const labelsName = labelList.join("<br>");
                     const lines = pair[1];
                     // TODO(jwall): Headers
                     for (const line of lines) {
                         // For streams the timestamps are in nanoseconds
+                        // TODO(zaphar): We should improve the timstamp formatting a bit
                         dateColumn.push(new Date(line.timestamp / 1000000));
+                        metaColumn.push(labelsName);
                         logColumn.push(line.line);
                     }
                 }
                 trace.cells.values.push(dateColumn);
+                trace.cells.values.push(metaColumn);
                 trace.cells.values.push(logColumn);
                 traces.push(trace);
             }
