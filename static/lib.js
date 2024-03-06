@@ -333,7 +333,6 @@ export class GraphPlot extends HTMLElement {
       * @returns {HTMLDivElement}
       */
     buildSelectElement(key) {
-        // TODO(jwall): Should we have a select all?
         var id = key + "-select" + Math.random();
         const element = document.createElement("div");
         const select = document.createElement("select");
@@ -341,13 +340,14 @@ export class GraphPlot extends HTMLElement {
         // TODO(jwall): This is how you set boolean attributes. Use the attribute named... :-(
         select.setAttribute("multiple", "multiple");
         const optElement = document.createElement("option");
-        const optValue = "Select " + key;
+        const optValue = "Select All: " + key;
         optElement.innerText = optValue;
         select.appendChild(optElement);
         for (var opt of this.#filterLabels[key]) {
             const optElement = document.createElement("option");
             optElement.setAttribute("value", opt);
             optElement.setAttribute("selected", "selected");
+            optElement.selected = true;
             optElement.innerText = opt;
             select.appendChild(optElement);
         }
@@ -356,8 +356,29 @@ export class GraphPlot extends HTMLElement {
         select.onchange = function(evt) {
             evt.stopPropagation();
             var filteredValues = [];
-            for (var opt of /** @type {HTMLSelectElement} */(evt.target).selectedOptions) {
-                filteredValues.push(opt.getAttribute("value"));
+            const selectElement = /** @type {HTMLSelectElement} */(evt.target);
+            var selectAll = /** @type {?HTMLOptionElement}*/(null);
+            for (const optEl of selectElement.selectedOptions) {
+                if (optEl.value && optEl.value.startsWith("Select All: ")) {
+                    selectAll = optEl;
+                    break;
+                }
+            }
+            for (const o of selectElement.options) {
+                if (selectAll) {
+                    if (o != selectAll) {
+                        o.setAttribute("selected", "selected");
+                        o.selected = true;
+                        filteredValues.push(o.value);
+                    } else {
+                        o.removeAttribute("selected");
+                    }
+                } else if (!o.selected) {
+                    o.removeAttribute("selected");
+                } else {
+                    o.setAttribute("selected", "selected");
+                    filteredValues.push(o.value);
+                }
             }
             self.#filteredLabelSets[key] = filteredValues;
             self.reset(true);
@@ -527,7 +548,7 @@ export class GraphPlot extends HTMLElement {
                     columnwidth: [15, 20, 70],
                     header: {
                         align: "left",
-                        values: ["Timestamp","Labels", "Log"],
+                        values: ["Timestamp", "Labels", "Log"],
                         fill: { color: layout.xaxis.paper_bgcolor },
                         font: { color: getCssVariableValue('--text-color').trim() }
                     },
@@ -540,7 +561,7 @@ export class GraphPlot extends HTMLElement {
                 const dateColumn = [];
                 const metaColumn = [];
                 const logColumn = [];
-                
+
                 loopStream: for (const pair of subplot.Stream) {
                     const labels = pair[0];
                     var labelList = [];
@@ -556,7 +577,6 @@ export class GraphPlot extends HTMLElement {
                     // TODO(jwall): Headers
                     for (const line of lines) {
                         // For streams the timestamps are in nanoseconds
-                        // TODO(zaphar): We should improve the timstamp formatting a bit
                         let timestamp = new Date(line.timestamp / 1000000);
                         dateColumn.push(timestamp.toISOString());
                         metaColumn.push(labelsName);

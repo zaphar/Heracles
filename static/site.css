@@ -39,6 +39,10 @@ input, textarea, select, option, button {
     border-radius: 4px;
 }
 
+option[selected] {
+    background-color: var(--plot-background-color);
+}
+
 body * {
     padding-left: .3em;
     padding-right: .3em;
