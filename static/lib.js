@@ -48,7 +48,7 @@
  * @property {string=} name
  * @property {string} type 
  * @property {string=} mode
- * @property {HeaderOrCell} headers
+ * @property {HeaderOrCell} header
  * @property {HeaderOrCell} cells - An Array of columns for the table.
  * @property {string=} xaxis 
  * @property {string=} yaxis 
@@ -519,14 +519,15 @@ export class GraphPlot extends HTMLElement {
                     traces.push(trace);
                 }
             } else if (subplot.Stream) {
+                // TODO(jwall): It would be nice if scroll behavior would handle replots better.
                 // TODO(jwall): It's possible that this should actually be a separate custom
                 // element.
                 const trace = /** @type TableTrace  */({
                     type: "table",
                     columnwidth: [15, 20, 70],
-                    headers: {
+                    header: {
                         align: "left",
-                        values: ["Timestamp","Label", "Log"],
+                        values: ["Timestamp","Labels", "Log"],
                         fill: { color: layout.xaxis.paper_bgcolor },
                         font: { color: getCssVariableValue('--text-color').trim() }
                     },
