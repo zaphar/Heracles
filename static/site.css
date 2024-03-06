@@ -3,24 +3,12 @@
     --background-color: #FFFFFF; /* Light background */
     --text-color: #333333; /* Dark text for contrast */
     --paper-background-color: #F0F0F0;
-    --plot-background-color: #F0F0F0;
+    --plot-background-color: #FFFFFF;
     --accent-color: #6200EE; /* For buttons and interactive elements */
-
-    /* Graph colors */
-    --graph-color-1: #007BFF; /* Blue */
-    --graph-color-2: #28A745; /* Green */
-    --graph-color-3: #DC3545; /* Red */
-    --graph-color-4: #FFC107; /* Yellow */
-    --graph-color-5: #17A2B8; /* Cyan */
-    --graph-color-6: #6C757D; /* Gray */
 
     /* Axis and grid lines */
     --axis-color: #CCCCCC;
     --grid-line-color: #EEEEEE;
-
-    /* Tooltip background */
-    --tooltip-background-color: #FFFFFF;
-    --tooltip-text-color: #000000;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,21 +20,9 @@
         --text-color: #839496; /* base0 */
         --accent-color: #268bd2; /* blue */
 
-        /* Graph colors - Solarized Accent Colors */
-        --graph-color-1: #b58900; /* yellow */
-        --graph-color-2: #cb4b16; /* orange */
-        --graph-color-3: #dc322f; /* red */
-        --graph-color-4: #d33682; /* magenta */
-        --graph-color-5: #6c71c4; /* violet */
-        --graph-color-6: #2aa198; /* cyan */
-
         /* Axis and grid lines */
         --axis-color: #586e75; /* base01 */
         --grid-line-color: #073642; /* base02 */
-
-        /* Tooltip background */
-        --tooltip-background-color: #002b36; /* base03 */
-        --tooltip-text-color: #839496; /* base0 */
     }
 }
 

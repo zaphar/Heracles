@@ -34,8 +34,11 @@
  * @type {object}
  * @property {array} values
  * @property {{color: string}=} fill
+ * @property {object=} font
+ * @property {string=} font.family
+ * @property {number=} font.size
+ * @property {string=} font.color
  * @property {{width: number, color: string}=} line
- * @property {{family: string, size: number, color: string }=} font
  * @property {Array<number>=} columnwidth
  */
 
@@ -437,7 +440,7 @@ export class GraphPlot extends HTMLElement {
                 color: getCssVariableValue('--text-color').trim()
             },
             xaxis: {
-                gridcolor: getCssVariableValue("--accent-color")
+                gridcolor: getCssVariableValue("--grid-line-color")
             },
             legend: {
                 orientation: 'v'
@@ -449,7 +452,7 @@ export class GraphPlot extends HTMLElement {
         var nextYaxis = this.yaxisNameGenerator();
         for (const yaxis of yaxes) {
             yaxis.tickformat = yaxis.tickformat || this.#d3TickFormat;
-            yaxis.gridColor = getCssVariableValue("--accent-color");
+            yaxis.gridColor = getCssVariableValue("--grid-line-color");
             layout[nextYaxis()] = yaxis;
         }
         var traces = /** @type {Array<PlotTrace>} */ ([]);
@@ -524,7 +527,8 @@ export class GraphPlot extends HTMLElement {
                     headers: {
                         align: "left",
                         values: ["Timestamp","Label", "Log"],
-                        fill: { color: layout.xaxis.gridColor }
+                        fill: { color: layout.xaxis.paper_bgcolor },
+                        font: { color: getCssVariableValue('--text-color').trim() }
                     },
                     cells: {
                         align: "left",
