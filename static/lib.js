@@ -431,7 +431,7 @@ export class GraphPlot extends HTMLElement {
         var layout = {
             displayModeBar: false,
             responsive: true,
-            plot_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            plot_bgcolor: getCssVariableValue('--plot-background-color').trim(),
             paper_bgcolor: getCssVariableValue('--paper-background-color').trim(),
             font: {
                 color: getCssVariableValue('--text-color').trim()
@@ -529,7 +529,7 @@ export class GraphPlot extends HTMLElement {
                     cells: {
                         align: "left",
                         values: [],
-                        fill: { color: layout.paper_bgcolor }
+                        fill: { color: layout.plot_bgcolor }
                     },
                 });
                 const dateColumn = [];

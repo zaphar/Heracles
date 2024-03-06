@@ -3,6 +3,7 @@
     --background-color: #FFFFFF; /* Light background */
     --text-color: #333333; /* Dark text for contrast */
     --paper-background-color: #F0F0F0;
+    --plot-background-color: #F0F0F0;
     --accent-color: #6200EE; /* For buttons and interactive elements */
 
     /* Graph colors */
@@ -27,6 +28,7 @@
         /* Solarized Dark Base Colors */
         --background-color: #002b36; /* base03 */
         --paper-background-color: #003c4a;
+        --plot-background-color: rgb(24, 34, 21);
         --text-color: #839496; /* base0 */
         --accent-color: #268bd2; /* blue */
 
