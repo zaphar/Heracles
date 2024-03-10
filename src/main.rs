@@ -14,7 +14,7 @@
 use anyhow;
 use axum::{self, extract::State, routing::*, Router};
 use clap::{self, Parser, ValueEnum};
-use dashboard::{prom_query_data, Dashboard};
+use dashboard::{prom_query_data, loki_query_data, Dashboard};
 use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
@@ -38,14 +38,16 @@ enum Verbosity {
 #[derive(clap::Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[arg(long)]
+    #[arg(long, help="IP:Port pair to listen on. e.g. 0.0.0.0:8000")]
     pub listen: Option<String>,
-    #[arg(long)]
+    #[arg(long, help="Location of the configuration file for dashboards.")]
     pub config: PathBuf,
-    #[arg(long, value_enum, default_value_t = Verbosity::INFO)]
+    #[arg(long, value_enum, default_value_t = Verbosity::INFO, help="Logging verbosity")]
     pub verbose: Verbosity,
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = false, help="Validate the config specified instead of starting the server.")]
     pub validate: bool,
+    #[arg(long, default_value_t = false, help="Do validation offline. Skips testing the queries against their sources.")]
+    pub offline: bool,
 }
 
 async fn validate(dash: &Dashboard) -> anyhow::Result<()> {
@@ -53,7 +55,16 @@ async fn validate(dash: &Dashboard) -> anyhow::Result<()> {
         for graph in graphs.iter() {
             let data = prom_query_data(graph, &dash, None).await;
             if data.is_err() {
-                error!(err=?data, "Invalid dashboard query or queries");
+                error!(err=?data, "Invalid dashboard graph query or queries");
+            }
+            let _ = data?;
+        }
+    }
+    if let Some(ref logs) = dash.logs {
+        for log in logs.iter() {
+            let data = loki_query_data(log, dash, None).await;
+            if data.is_err() {
+                error!(err=?data, "Invalid dashboard loki query or queries");
             }
             let _ = data?;
         }
@@ -79,10 +90,12 @@ async fn main() -> anyhow::Result<()> {
     let config = std::sync::Arc::new(dashboard::read_dashboard_list(args.config.as_path())?);
 
     if args.validate {
-        for dash in config.iter() {
-            validate(&dash).await?;
-            info!("All Queries successfully run against source");
-            return Ok(());
+        if !args.offline {
+            for dash in config.iter() {
+                validate(&dash).await?;
+                info!("All Queries successfully run against source");
+                return Ok(());
+            }
         }
     }
     let router = Router::new()
