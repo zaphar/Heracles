@@ -337,8 +337,9 @@ export class GraphPlot extends HTMLElement {
         const element = document.createElement("div");
         const select = document.createElement("select");
         select.setAttribute("name", id);
-        // TODO(jwall): This is how you set boolean attributes. Use the attribute named... :-(
+        // TODO(jwall): This is how you set boolean attributes. Use the attribute name... :-(
         select.setAttribute("multiple", "multiple");
+        select.setAttribute("size", "3");
         const optElement = document.createElement("option");
         const optValue = "Select All: " + key;
         optElement.innerText = optValue;
