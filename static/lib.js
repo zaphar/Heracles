@@ -13,74 +13,6 @@
 // limitations under the License.
 
 /**
- * @typedef PlotList
- * @type {object}
- * @property {Array=} Series
- * @property {Array=} Scalar
- * @property {Array=} StreamInstant - Timestamps are in seconds
- * @property {Array=} Stream - Timestamps are in nanoseconds
- */
-
-/**
- * @typedef QueryData
- * @type {object}
- * @property {object} yaxes
- * @property {?string} legend_orientation
- * @property {Array<PlotList>} plots
- */
-
-/** 
- * @typedef HeaderOrCell
- * @type {object}
- * @property {array} values
- * @property {{color: string}=} fill
- * @property {object=} font
- * @property {string=} font.family
- * @property {number=} font.size
- * @property {string=} font.color
- * @property {{width: number, color: string}=} line
- * @property {Array<number>=} columnwidth
- */
-
-/**
- * @typedef TableTrace
- * @type {object}
- * @property {string=} name
- * @property {string} type 
- * @property {string=} mode
- * @property {HeaderOrCell} header
- * @property {HeaderOrCell} cells - An Array of columns for the table.
- * @property {string=} xaxis 
- * @property {string=} yaxis 
-*/
-
-/**
- * @typedef GraphTrace
- * @type {object}
- * @property {string=} name
- * @property {string=} fill
- * @property type {string}
- * @property {string=} mode
- * @property {Array} x
- * @property {Array} y
- * @property {string=} xaxis 
- * @property {string=} yaxis 
-*/
-
-/**
- * @typedef PlotTrace
- * @type {(TableTrace|GraphTrace)}
-*/
-
-/**
- * @typedef PlotMeta
- * @type {object}
- * @property {string=} name_format
- * @property {string=} yaxis
- * @property {("tonexty"|"tozeroy"|"tonextx"|"tozerox"|"toself"|"tonext")=} fill
- */
-
-/**
  * Map ansi terminal codes to html color codes.
  * @param {string} line
  */
@@ -513,6 +445,37 @@ export class GraphPlot extends HTMLElement {
     }
 
     /**
+     * @param {Array} stream
+     */
+    buildStreamPlot(stream) {
+        const dateColumn = [];
+        const metaColumn = [];
+        const logColumn = [];
+
+        loopStream: for (const pair of stream) {
+            const labels = pair[0];
+            var labelList = [];
+            for (var label in labels) {
+                var show = this.#filteredLabelSets[label];
+                if (show && !show.includes(labels[label])) {
+                    continue loopStream;
+                }
+                labelList.push(`${label}:${labels[label]}`);
+            }
+            const labelsName = labelList.join("<br>");
+            const lines = pair[1];
+            for (const line of lines) {
+                // For streams the timestamps are in nanoseconds
+                let timestamp = new Date(line.timestamp / 1000000);
+                dateColumn.push(timestamp.toISOString());
+                metaColumn.push(labelsName);
+                logColumn.push(ansiToHtml(line.line));
+            }
+        }
+        return [dateColumn, metaColumn, logColumn];
+    }
+
+    /**
      * Update the graph with new data.
      *
      * @param {?QueryData=} maybeGraph
@@ -554,7 +517,7 @@ export class GraphPlot extends HTMLElement {
             var nextYaxis = this.yaxisNameGenerator();
             if (subplot.Series) {
                 // https://plotly.com/javascript/reference/scatter/
-                loopSeries: for (const triple of subplot.Series) {
+                for (const triple of subplot.Series) {
                     const trace = this.buildSeriesPlot(triple);
                     if (trace) {
                         traces.push(trace);
@@ -562,7 +525,7 @@ export class GraphPlot extends HTMLElement {
                 }
             } else if (subplot.Scalar) {
                 // https://plotly.com/javascript/reference/bar/
-                loopScalar: for (const triple of subplot.Scalar) {
+                for (const triple of subplot.Scalar) {
                     const trace = this.buildScalarPlot(triple);
                     if (trace) {
                         traces.push(trace);
@@ -587,31 +550,7 @@ export class GraphPlot extends HTMLElement {
                         fill: { color: layout.plot_bgcolor }
                     },
                 });
-                const dateColumn = [];
-                const metaColumn = [];
-                const logColumn = [];
-
-                loopStream: for (const pair of subplot.Stream) {
-                    const labels = pair[0];
-                    var labelList = [];
-                    for (var label in labels) {
-                        var show = this.#filteredLabelSets[label];
-                        if (show && !show.includes(labels[label])) {
-                            continue loopStream;
-                        }
-                        labelList.push(`${label}:${labels[label]}`);
-                    }
-                    const labelsName = labelList.join("<br>");
-                    const lines = pair[1];
-                    // TODO(jwall): Headers
-                    for (const line of lines) {
-                        // For streams the timestamps are in nanoseconds
-                        let timestamp = new Date(line.timestamp / 1000000);
-                        dateColumn.push(timestamp.toISOString());
-                        metaColumn.push(labelsName);
-                        logColumn.push(ansiToHtml(line.line));
-                    }
-                }
+                const [dateColumn, metaColumn, logColumn] = this.buildStreamPlot(subplot.Stream);
                 trace.cells.values.push(dateColumn);
                 trace.cells.values.push(metaColumn);
                 trace.cells.values.push(logColumn);
