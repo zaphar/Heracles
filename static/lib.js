@@ -17,8 +17,8 @@
  * @type {object}
  * @property {Array=} Series
  * @property {Array=} Scalar
- * @property {Array<{timestamp: string, line: string}>=} StreamInstant - Timestamps are in seconds
- * @property {Array<{timestamp: string, line: string}>=} Stream - Timestamps are in nanoseconds
+ * @property {Array=} StreamInstant - Timestamps are in seconds
+ * @property {Array=} Stream - Timestamps are in nanoseconds
  */
 
 /**
@@ -71,6 +71,14 @@
  * @typedef PlotTrace
  * @type {(TableTrace|GraphTrace)}
 */
+
+/**
+ * @typedef PlotMeta
+ * @type {object}
+ * @property {string=} name_format
+ * @property {string=} yaxis
+ * @property {("tonexty"|"tozeroy"|"tonextx"|"tozerox"|"toself"|"tonext")=} fill
+ */
 
 /**
  * Map ansi terminal codes to html color codes.
@@ -293,7 +301,7 @@ export class GraphPlot extends HTMLElement {
 
     /** 
      * Formats the name for the plot trace.
-     * @param {{name_format: ?string}} meta
+     * @param {PlotMeta} meta
      * @param {Map<string, string>} labels
      * @return string
      */
@@ -441,6 +449,40 @@ export class GraphPlot extends HTMLElement {
         };
     }
 
+    buildSeriesPlot(triple) {
+        const labels = /** @type {Map<String, String>} */(triple[0]);
+        for (var label in labels) {
+            var show = this.#filteredLabelSets[label];
+            if (show && !show.includes(labels[label])) {
+                return null;
+            }
+        }
+        const meta = /** @type {PlotMeta} */(triple[1]);
+        var yaxis = meta.yaxis || "y";
+        // https://plotly.com/javascript/reference/layout/yaxis/
+        const series = triple[2];
+        const trace = /** @type GraphTrace */({
+            type: "scatter",
+            mode: "lines+text",
+            x: [],
+            y: [],
+            // We always share the x axis for timeseries graphs.
+            xaxis: "x",
+            yaxis: yaxis,
+            //yhoverformat: yaxis.tickformat,
+        });
+        if (meta.fill) {
+            trace.fill = meta.fill;
+        }
+        var name = this.formatName(meta, labels);
+        if (name) { trace.name = name; }
+        for (const point of series) {
+            trace.x.push(new Date(point.timestamp * 1000));
+            trace.y.push(point.value);
+        }
+        return trace;
+    }
+
     /**
      * Update the graph with new data.
      *
@@ -484,37 +526,10 @@ export class GraphPlot extends HTMLElement {
             if (subplot.Series) {
                 // https://plotly.com/javascript/reference/scatter/
                 loopSeries: for (const triple of subplot.Series) {
-                    const labels = triple[0];
-                    for (var label in labels) {
-                        var show = this.#filteredLabelSets[label];
-                        if (show && !show.includes(labels[label])) {
-                            continue loopSeries;
-                        }
+                    const trace = this.buildSeriesPlot(triple);
+                    if (trace) { 
+                        traces.push(trace);
                     }
-                    const meta = triple[1];
-                    var yaxis = meta.yaxis || "y";
-                    // https://plotly.com/javascript/reference/layout/yaxis/
-                    const series = triple[2];
-                    const trace = /** @type GraphTrace */({
-                        type: "scatter",
-                        mode: "lines+text",
-                        x: [],
-                        y: [],
-                        // We always share the x axis for timeseries graphs.
-                        xaxis: "x",
-                        yaxis: yaxis,
-                        //yhoverformat: yaxis.tickformat,
-                    });
-                    if (meta.fill) {
-                        trace.fill = meta.fill;
-                    }
-                    var name = this.formatName(meta, labels);
-                    if (name) { trace.name = name; }
-                    for (const point of series) {
-                        trace.x.push(new Date(point.timestamp * 1000));
-                        trace.y.push(point.value);
-                    }
-                    traces.push(trace);
                 }
             } else if (subplot.Scalar) {
                 // https://plotly.com/javascript/reference/bar/
