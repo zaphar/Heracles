@@ -449,6 +449,9 @@ export class GraphPlot extends HTMLElement {
         };
     }
 
+    /**
+     * @param {any} triple
+     */
     buildSeriesPlot(triple) {
         const labels = /** @type {Map<String, String>} */(triple[0]);
         for (var label in labels) {
@@ -480,6 +483,32 @@ export class GraphPlot extends HTMLElement {
             trace.x.push(new Date(point.timestamp * 1000));
             trace.y.push(point.value);
         }
+        return trace;
+    }
+
+    /**
+     * @param {any} triple
+     */
+    buildScalarPlot(triple) {
+        const labels = /** @type {Map<String,String>} */(triple[0]);
+        for (var label in labels) {
+            var show = this.#filteredLabelSets[label];
+            if (show && !show.includes(labels[label])) {
+                return null;
+            }
+        }
+        const meta = /** @type {PlotMeta} */(triple[1]);
+        const series = triple[2];
+        const trace = /** @type GraphTrace  */({
+            type: "bar",
+            x: [],
+            y: [],
+            yhoverformat: meta["d3_tick_format"],
+        });
+        var name = this.formatName(meta, labels);
+        if (name) { trace.name = name; }
+        trace.y.push(series.value);
+        trace.x.push(trace.name);
         return trace;
     }
 
@@ -527,33 +556,17 @@ export class GraphPlot extends HTMLElement {
                 // https://plotly.com/javascript/reference/scatter/
                 loopSeries: for (const triple of subplot.Series) {
                     const trace = this.buildSeriesPlot(triple);
-                    if (trace) { 
+                    if (trace) {
                         traces.push(trace);
                     }
                 }
             } else if (subplot.Scalar) {
                 // https://plotly.com/javascript/reference/bar/
                 loopScalar: for (const triple of subplot.Scalar) {
-                    const labels = triple[0];
-                    for (var label in labels) {
-                        var show = this.#filteredLabelSets[label];
-                        if (show && !show.includes(labels[label])) {
-                            continue loopScalar;
-                        }
+                    const trace = this.buildScalarPlot(triple);
+                    if (trace) {
+                        traces.push(trace);
                     }
-                    const meta = triple[1];
-                    const series = triple[2];
-                    const trace = /** @type GraphTrace  */({
-                        type: "bar",
-                        x: [],
-                        y: [],
-                        yhoverformat: meta["d3_tick_format"],
-                    });
-                    var name = this.formatName(meta, labels);
-                    if (name) { trace.name = name; }
-                    trace.y.push(series.value);
-                    trace.x.push(trace.name);
-                    traces.push(trace);
                 }
             } else if (subplot.Stream) {
                 // TODO(jwall): It would be nice if scroll behavior would handle replots better.
