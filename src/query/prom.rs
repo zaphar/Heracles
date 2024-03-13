@@ -48,7 +48,6 @@ impl<'conn> PromQueryConn<'conn> {
             meta,
             span: None,
             filters: None,
-
         }
     }
 
@@ -69,6 +68,33 @@ impl<'conn> PromQueryConn<'conn> {
             step_seconds: step.num_seconds(),
         });
         self
+    }
+
+    fn get_query(&self) -> String {
+        let first = true;
+        let mut filter_string = String::new();
+        if let Some(filters) = self.filters {
+            for (k, v) in filters.iter() {
+                if !first {
+                    filter_string.push_str(",");
+                }
+                filter_string.push_str(*k);
+                filter_string.push_str("=~");
+                filter_string.push('"');
+                filter_string.push_str(*v);
+                filter_string.push('"');
+            }
+                filter_string.push(',');
+        }
+        if self.query.contains("FILTERS") {
+            // TODO(jwall): replace the FILTERS placeholder with our filters
+            self.query.replace("FILTERS", &filter_string)
+        } else {
+            let mut filter_string_curly = String::from("{");
+            filter_string_curly.push_str(&filter_string);
+            // TODO(jwall): Place them after the first `{`
+            self.query.replace("{", &filter_string_curly)
+        }
     }
 
     pub async fn get_results(&self) -> anyhow::Result<PromqlResult> {
@@ -100,16 +126,18 @@ impl<'conn> PromQueryConn<'conn> {
             (start.timestamp(), end.timestamp(), 30 as f64)
         };
         //debug!(start, end, step_resolution, "Running Query with range values");
+        let query = self.get_query();
+        debug!(?query, "Using promql query");
         match self.query_type {
             QueryType::Range => {
                 let results = client
-                    .query_range(self.query, start, end, step_resolution)
+                    .query_range(&query, start, end, step_resolution)
                     .get()
                     .await?;
                 //debug!(?results, "range results");
                 Ok(results)
             }
-            QueryType::Scalar => Ok(client.query(self.query).get().await?),
+            QueryType::Scalar => Ok(client.query(&query).get().await?),
         }
     }
 }
