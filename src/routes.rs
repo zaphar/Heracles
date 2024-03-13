@@ -54,7 +54,7 @@ pub async fn loki_query(
         .expect("No logs in this dashboard")
         .get(loki_idx)
         .expect(&format!("No such log query {}", loki_idx));
-    let plots = vec![loki_query_data(log, dash, query_to_graph_span(query))
+    let plots = vec![loki_query_data(log, dash, query_to_graph_span(&query))
         .await
         .expect("Unable to get log query results")];
     Json(GraphPayload {
@@ -79,7 +79,8 @@ pub async fn graph_query(
         .expect("No graphs in this dashboard")
         .get(graph_idx)
         .expect(&format!("No such graph in dasboard {}", dash_idx));
-    let plots = prom_query_data(graph, dash, query_to_graph_span(query))
+    let filters = query_to_filterset(&query);
+    let plots = prom_query_data(graph, dash, query_to_graph_span(&query), &filters)
         .await
         .expect("Unable to get query results");
     Json(GraphPayload {
@@ -89,7 +90,23 @@ pub async fn graph_query(
     })
 }
 
-fn query_to_graph_span(query: HashMap<String, String>) -> Option<GraphSpan> {
+fn query_to_filterset<'v, 'a: 'v>(query: &'a HashMap<String, String>) -> Option<HashMap<&'v str, &'v str>> {
+    let mut label_set = HashMap::new();
+    for (k, v) in query.iter() {
+        if k.starts_with("filter-") {
+            if let Some(label) = k.strip_prefix("filter-") {
+                label_set.insert(label, v.as_str());
+            }
+        }
+    }
+    if label_set.is_empty() {
+        None
+    } else {
+        Some(label_set)
+    }
+}
+
+fn query_to_graph_span<'a>(query: &'a HashMap<String, String>) -> Option<GraphSpan> {
     let query_span = {
         if query.contains_key("end")
             && query.contains_key("duration")

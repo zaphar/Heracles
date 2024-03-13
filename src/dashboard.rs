@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 // Copyright 2023 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -120,12 +121,13 @@ pub struct LogStream {
     pub query_type: QueryType,
 }
 
-pub async fn prom_query_data(
+pub async fn prom_query_data<'a>(
     graph: &Graph,
     dash: &Dashboard,
     query_span: Option<GraphSpan>,
+    filters: &Option<HashMap<&'a str, &'a str>>,
 ) -> Result<Vec<QueryResult>> {
-    let connections = graph.get_query_connections(&dash.span, &query_span);
+    let connections = graph.get_query_connections(&dash.span, &query_span, filters);
     let mut data = Vec::new();
     for conn in connections {
         data.push(prom_to_samples(
@@ -205,12 +207,14 @@ impl Graph {
         &'graph self,
         graph_span: &'graph Option<GraphSpan>,
         query_span: &'graph Option<GraphSpan>,
+        filters: &'graph Option<HashMap<&'graph str, &'graph str>>,
     ) -> Vec<PromQueryConn<'conn>> {
         let mut conns = Vec::new();
         for plot in self.plots.iter() {
             debug!(
                 query = plot.query,
                 source = plot.source,
+                filters = ?filters,
                 "Getting query connection for graph",
             );
             let mut conn = PromQueryConn::new(
@@ -219,6 +223,9 @@ impl Graph {
                 self.query_type.clone(),
                 plot.meta.clone(),
             );
+            if let Some(filters) = filters {
+                conn = conn.with_filters(filters);
+            }
             // Query params take precendence over all other settings. Then graph settings take
             // precedences and finally the dashboard settings take precendence
             if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {

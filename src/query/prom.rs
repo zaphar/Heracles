@@ -30,6 +30,7 @@ pub struct PromQueryConn<'conn> {
     query: &'conn str,
     span: Option<TimeSpan>,
     query_type: QueryType,
+    filters: Option<&'conn HashMap<&'conn str, &'conn str>>,
     pub meta: PlotMeta,
 }
 
@@ -46,7 +47,14 @@ impl<'conn> PromQueryConn<'conn> {
             query_type,
             meta,
             span: None,
+            filters: None,
+
         }
+    }
+
+    pub fn with_filters(mut self, filters: &'conn HashMap<&'conn str, &'conn str>) -> Self {
+        self.filters = Some(filters);
+        self
     }
 
     pub fn with_span(

@@ -53,7 +53,7 @@ struct Cli {
 async fn validate(dash: &Dashboard) -> anyhow::Result<()> {
     if let Some(ref graphs) = dash.graphs {
         for graph in graphs.iter() {
-            let data = prom_query_data(graph, &dash, None).await;
+            let data = prom_query_data(graph, &dash, None, &None).await;
             if data.is_err() {
                 error!(err=?data, "Invalid dashboard graph query or queries");
             }
