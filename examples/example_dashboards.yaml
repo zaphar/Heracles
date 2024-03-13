@@ -37,8 +37,9 @@
           tickformat: "~%"
       plots:
         - source: http://heimdall:9001
+          # You can use the FILTERS placeholder to indicate where user selected filters should be placed.
           query: |
-            sum by (instance)(irate(node_cpu_seconds_total{mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
+            sum by (instance)(irate(node_cpu_seconds_total{FILTERS mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{FILTERS job="nodestats"}[5m]))
           meta:
             name_format: "`${labels.instance} system`"
             yaxis: "y"
