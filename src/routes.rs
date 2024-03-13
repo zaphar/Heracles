@@ -28,7 +28,7 @@ use tracing::debug;
 use crate::dashboard::{
     loki_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
 };
-use crate::query::QueryResult;
+use crate::query::{self, QueryResult};
 
 type Config = State<Arc<Vec<Dashboard>>>;
 
@@ -91,6 +91,7 @@ pub async fn graph_query(
 }
 
 fn query_to_filterset<'v, 'a: 'v>(query: &'a HashMap<String, String>) -> Option<HashMap<&'v str, &'v str>> {
+    debug!(query_params=?query, "Filtering query params to filter requests");
     let mut label_set = HashMap::new();
     for (k, v) in query.iter() {
         if k.starts_with("filter-") {
@@ -153,13 +154,14 @@ pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Mark
     let graph_id = format!("graph-{}-{}", dash_idx, graph_idx);
     let graph_data_uri = format!("/api/dash/{}/graph/{}", dash_idx, graph_idx);
     let graph_embed_uri = format!("/embed/dash/{}/graph/{}", dash_idx, graph_idx);
+    let allow_filters = graph.plots.iter().find(|p| p.query.contains(query::FILTER_PLACEHOLDER)).is_some();
     html!(
         div {
             h2 { (graph.title) " - " a href=(graph_embed_uri) { "embed url" } }
             @if graph.d3_tick_format.is_some() {
-                graph-plot uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
+                graph-plot allow-uri-filters=(allow_filters) uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
             } @else {
-                graph-plot uri=(graph_data_uri) id=(graph_id) { }
+                graph-plot allow-uri-filters=(allow_filters) uri=(graph_data_uri) id=(graph_id) { }
             }
         }
     )

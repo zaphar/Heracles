@@ -64,6 +64,8 @@ function getCssVariableValue(variableName) {
 export class GraphPlot extends HTMLElement {
     /** @type {?string} */
     #uri;
+    /** @type {?boolean} */
+    #allowUriFilters;
     /** @type {?number} */
     #width;
     /** @type {?number} */
@@ -103,7 +105,7 @@ export class GraphPlot extends HTMLElement {
         this.#targetNode = this.appendChild(document.createElement("div"));
     }
 
-    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'd3-tick-format'];
+    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'd3-tick-format', 'allow-uri-filter'];
 
     /**
      * Callback for attributes changes.
@@ -138,6 +140,9 @@ export class GraphPlot extends HTMLElement {
             case 'd3-tick-format':
                 this.#d3TickFormat = newValue;
                 break;
+            case 'allow-uri-filters':
+                this.#allowUriFilters = Boolean(newValue);
+                break;
             default: // do nothing;
                 break;
         }
@@ -153,6 +158,7 @@ export class GraphPlot extends HTMLElement {
         this.#duration = Number(this.getAttribute('duration')) || null;
         this.#step_duration = this.getAttribute('step-duration') || null;
         this.#d3TickFormat = this.getAttribute('d3-tick-format') || this.#d3TickFormat;
+        this.#allowUriFilters = Boolean(this.getAttribute('allow-uri-filters'));
         this.reset();
     }
 
@@ -211,8 +217,21 @@ export class GraphPlot extends HTMLElement {
      * @returns {string}
      */
     getUri() {
+        //var uriParts = [this.#uri];
+        var uriParts = [];
         if (this.#end && this.#duration && this.#step_duration) {
-            return this.#uri + "?end=" + this.#end + "&duration=" + this.#duration + "&step_duration=" + this.#step_duration;
+            uriParts.push("end=" + this.#end);
+            uriParts.push("duration=" + this.#duration);
+            uriParts.push("step_duration=" + this.#step_duration);
+        }
+        if (this.#allowUriFilters) {
+            for (const filterName in this.#filteredLabelSets) {
+                const filterVals = this.#filteredLabelSets[filterName].join("|");
+                uriParts.push(`filter-${filterName}=${filterVals}`)
+            }
+        }
+        if (uriParts) {
+            return this.#uri + "?" + uriParts.join('&');
         } else {
             return this.#uri;
         }

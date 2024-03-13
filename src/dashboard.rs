@@ -224,6 +224,7 @@ impl Graph {
                 plot.meta.clone(),
             );
             if let Some(filters) = filters {
+                debug!(?filters, "query connection with filters");
                 conn = conn.with_filters(filters);
             }
             // Query params take precendence over all other settings. Then graph settings take

@@ -24,6 +24,10 @@ use crate::dashboard::PlotMeta;
 
 use super::{DataPoint, QueryResult, QueryType, TimeSpan};
 
+pub const FILTER_PLACEHOLDER: &'static str = "FILTERS";
+pub const FILTER_COMMA_PLACEHOLDER: &'static str = ",FILTERS";
+pub const FILTER_PLACEHOLDER_COMMA: &'static str = "FILTERS,";
+
 #[derive(Debug)]
 pub struct PromQueryConn<'conn> {
     source: &'conn str,
@@ -73,6 +77,7 @@ impl<'conn> PromQueryConn<'conn> {
     fn get_query(&self) -> String {
         let first = true;
         let mut filter_string = String::new();
+        debug!(filters=?self.filters, orig=?self.query, "Filters from request");
         if let Some(filters) = self.filters {
             for (k, v) in filters.iter() {
                 if !first {
@@ -84,16 +89,26 @@ impl<'conn> PromQueryConn<'conn> {
                 filter_string.push_str(*v);
                 filter_string.push('"');
             }
-                filter_string.push(',');
         }
-        if self.query.contains("FILTERS") {
-            // TODO(jwall): replace the FILTERS placeholder with our filters
-            self.query.replace("FILTERS", &filter_string)
+        if self.query.contains(FILTER_PLACEHOLDER_COMMA) {
+            debug!("Replacing Filter comma placeholder");
+            if !filter_string.is_empty() {
+                filter_string.push(',');
+            }
+            self.query.replace(FILTER_PLACEHOLDER, &filter_string)
+        } else if self.query.contains(FILTER_COMMA_PLACEHOLDER) {
+            debug!("Replacing Filter comma placeholder");
+            if !filter_string.is_empty() {
+                let mut temp: String = ",".into();
+                temp.push_str(&filter_string);
+                filter_string = temp;
+            }
+            self.query.replace(FILTER_PLACEHOLDER, &filter_string)
+        } else if self.query.contains(FILTER_PLACEHOLDER) {
+            debug!("Replacing Filter placeholder");
+            self.query.replace(FILTER_PLACEHOLDER, &filter_string)
         } else {
-            let mut filter_string_curly = String::from("{");
-            filter_string_curly.push_str(&filter_string);
-            // TODO(jwall): Place them after the first `{`
-            self.query.replace("{", &filter_string_curly)
+            self.query.to_string()
         }
     }
 
