@@ -159,7 +159,7 @@ export class GraphPlot extends HTMLElement {
         this.#step_duration = this.getAttribute('step-duration') || null;
         this.#d3TickFormat = this.getAttribute('d3-tick-format') || this.#d3TickFormat;
         this.#allowUriFilters = Boolean(this.getAttribute('allow-uri-filters'));
-        this.reset();
+        this.reset(true);
     }
 
     disconnectedCallback() {
