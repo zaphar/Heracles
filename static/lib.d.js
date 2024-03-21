@@ -17,6 +17,11 @@
  * @type {object}
  * @property {Array=} Series
  * @property {Array=} Scalar
+ */
+
+/**
+ * @typedef LogLineList
+ * @type {object}
  * @property {Array=} StreamInstant - Timestamps are in seconds
  * @property {Array=} Stream - Timestamps are in nanoseconds
  */
@@ -27,6 +32,11 @@
  * @property {object} yaxes
  * @property {?string} legend_orientation
  * @property {Array<PlotList>} plots
+ */
+
+/**
+ * @typedef QueryPayload
+ * @type {{Metrics: QueryData, Logs: {lines: LogLineList}}}
  */
 
 /** 

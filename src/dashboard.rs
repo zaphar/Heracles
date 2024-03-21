@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 // Copyright 2023 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +12,7 @@ use std::collections::HashMap;
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::path::Path;
+use std::collections::HashMap;
 
 use anyhow::Result;
 use chrono::prelude::*;
@@ -21,8 +21,9 @@ use serde::{Deserialize, Serialize};
 use serde_yaml;
 use tracing::{debug, error};
 
+use crate::query::LogQueryResult;
 use crate::query::{
-    loki_to_sample, prom_to_samples, LokiConn, PromQueryConn, QueryResult, QueryType,
+    loki_to_sample, prom_to_samples, LokiConn, PromQueryConn, MetricsQueryResult, QueryType,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -126,7 +127,7 @@ pub async fn prom_query_data<'a>(
     dash: &Dashboard,
     query_span: Option<GraphSpan>,
     filters: &Option<HashMap<&'a str, &'a str>>,
-) -> Result<Vec<QueryResult>> {
+) -> Result<Vec<MetricsQueryResult>> {
     let connections = graph.get_query_connections(&dash.span, &query_span, filters);
     let mut data = Vec::new();
     for conn in connections {
@@ -142,7 +143,7 @@ pub async fn loki_query_data(
     stream: &LogStream,
     dash: &Dashboard,
     query_span: Option<GraphSpan>,
-) -> Result<QueryResult> {
+) -> Result<LogQueryResult> {
     let conn = stream.get_query_connection(&dash.span, &query_span);
     let response = conn.get_results().await?;
     if response.status == "success" {

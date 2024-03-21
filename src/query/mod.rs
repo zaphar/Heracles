@@ -47,17 +47,21 @@ pub struct LogLine {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum QueryResult {
+pub enum MetricsQueryResult {
     Series(Vec<(HashMap<String, String>, PlotMeta, Vec<DataPoint>)>),
     Scalar(Vec<(HashMap<String, String>, PlotMeta, DataPoint)>),
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum LogQueryResult {
     StreamInstant(Vec<(HashMap<String, String>, LogLine)>),
     Stream(Vec<(HashMap<String, String>, Vec<LogLine>)>),
 }
 
-impl std::fmt::Debug for QueryResult {
+impl std::fmt::Debug for MetricsQueryResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            QueryResult::Series(v) => {
+            MetricsQueryResult::Series(v) => {
                 f.write_fmt(format_args!("Series trace count = {}", v.len()))?;
                 for (idx, (tags, meta, trace)) in v.iter().enumerate() {
                     f.write_fmt(format_args!(
@@ -69,13 +73,21 @@ impl std::fmt::Debug for QueryResult {
                     ))?;
                 }
             }
-            QueryResult::Scalar(v) => {
+            MetricsQueryResult::Scalar(v) => {
                 f.write_fmt(format_args!("{} traces", v.len()))?;
             }
-            QueryResult::StreamInstant(v) => {
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for LogQueryResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogQueryResult::StreamInstant(v) => {
                 f.write_fmt(format_args!("{} traces", v.len()))?;
             }
-            QueryResult::Stream(v) => {
+            LogQueryResult::Stream(v) => {
                 f.write_fmt(format_args!("stream trace count = {}", v.len()))?;
                 for (idx, (tags, trace)) in v.iter().enumerate() {
                     f.write_fmt(format_args!(
@@ -90,6 +102,5 @@ impl std::fmt::Debug for QueryResult {
         Ok(())
     }
 }
-
 pub use loki::*;
 pub use prom::*;

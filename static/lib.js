@@ -195,7 +195,7 @@ export class GraphPlot extends HTMLElement {
         self.stopInterval()
         self.fetchData().then((data) => {
             if (!updateOnly) {
-                self.getLabelsForData(data);
+                self.getLabelsForData(data.Metrics || data.Logs.Lines);
                 self.buildFilterMenu();
             }
             self.updateGraph(data).then(() => {
@@ -240,7 +240,7 @@ export class GraphPlot extends HTMLElement {
     /**
      * Returns the data from an api call.
      *
-     * @return {Promise<QueryData>}
+     * @return {Promise<QueryPayload>}
      */
     async fetchData() {
         // TODO(zaphar): Can we do some massaging on these
@@ -362,7 +362,7 @@ export class GraphPlot extends HTMLElement {
     }
 
     /**
-      * @param {QueryData} graph
+      * @param {QueryData|LogLineList} graph
       */
     getLabelsForData(graph) {
         const data = graph.plots;
@@ -384,6 +384,9 @@ export class GraphPlot extends HTMLElement {
                     const labels = pair[0];
                     this.populateFilterData(labels);
                 }
+            }
+            if (subplot.StreamInstant) {
+                // TODO(zaphar): Handle this?
             }
         }
     }
@@ -465,6 +468,8 @@ export class GraphPlot extends HTMLElement {
 
     /**
      * @param {Array} stream
+     *
+     * @returns {{dates: Array<string>, meta: Array<string>, lines: Array<string>}}
      */
     buildStreamPlot(stream) {
         const dateColumn = [];
@@ -491,19 +496,86 @@ export class GraphPlot extends HTMLElement {
                 logColumn.push(ansiToHtml(line.line));
             }
         }
-        return [dateColumn, metaColumn, logColumn];
+        return { dates: dateColumn, meta: metaColumn, lines: logColumn };
     }
 
     /**
      * Update the graph with new data.
      *
-     * @param {?QueryData=} maybeGraph
+     * @param {?QueryPayload=} maybeGraph
      */
     async updateGraph(maybeGraph) {
         var graph = maybeGraph;
         if (!graph) {
             graph = await this.fetchData();
         }
+        if (graph.Metrics) {
+            this.updateMetricsGraph(graph.Metrics);
+        } else if (graph.Logs) {
+            this.updateLogsView(graph.Logs.lines);
+        } else {
+        }
+    }
+
+    /**
+     * Update the logs view with new data.
+     *
+     * @param {?LogLineList=} logLineList
+     */
+    updateLogsView(logLineList) {
+        var layout = {
+            displayModeBar: false,
+            responsive: true,
+            plot_bgcolor: getCssVariableValue('--plot-background-color').trim(),
+            paper_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            font: {
+                color: getCssVariableValue('--text-color').trim()
+            },
+            xaxis: {
+                gridcolor: getCssVariableValue("--grid-line-color")
+            },
+            legend: {
+                orientation: 'v'
+            }
+        };
+        var traces = [];
+        if (logLineList.Stream) {
+            // TODO(jwall): It's possible that this should actually be a separate custom
+            // element.
+            const trace = /** @type TableTrace  */ ({
+                type: "table",
+                columnwidth: [15, 20, 70],
+                header: {
+                    align: "left",
+                    values: ["Timestamp", "Labels", "Log"],
+                    fill: { color: layout.xaxis.paper_bgcolor },
+                    font: { color: getCssVariableValue('--text-color').trim() }
+                },
+                cells: {
+                    align: "left",
+                    values: [],
+                    fill: { color: layout.plot_bgcolor }
+                },
+            });
+            const columns = this.buildStreamPlot(logLineList.Stream);
+            trace.cells.values.push(columns.dates);
+            trace.cells.values.push(columns.meta);
+            trace.cells.values.push(columns.lines);
+            traces.push(trace);
+        } else if (logLineList.StreamInstant) {
+            // TODO(zaphar): Handle this?
+        }
+        // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact
+        // @ts-ignore
+        Plotly.react(this.getTargetNode(), traces, layout, null);
+    }
+
+    /**
+     * Update the metrics graph with new data.
+     *
+     * @param {?QueryData=} graph
+     */
+    updateMetricsGraph(graph) {
         var data = graph.plots;
         var yaxes = graph.yaxes;
         var layout = {
@@ -550,30 +622,6 @@ export class GraphPlot extends HTMLElement {
                         traces.push(trace);
                     }
                 }
-            } else if (subplot.Stream) {
-                // TODO(jwall): It would be nice if scroll behavior would handle replots better.
-                // TODO(jwall): It's possible that this should actually be a separate custom
-                // element.
-                const trace = /** @type TableTrace  */({
-                    type: "table",
-                    columnwidth: [15, 20, 70],
-                    header: {
-                        align: "left",
-                        values: ["Timestamp", "Labels", "Log"],
-                        fill: { color: layout.xaxis.paper_bgcolor },
-                        font: { color: getCssVariableValue('--text-color').trim() }
-                    },
-                    cells: {
-                        align: "left",
-                        values: [],
-                        fill: { color: layout.plot_bgcolor }
-                    },
-                });
-                const [dateColumn, metaColumn, logColumn] = this.buildStreamPlot(subplot.Stream);
-                trace.cells.values.push(dateColumn);
-                trace.cells.values.push(metaColumn);
-                trace.cells.values.push(logColumn);
-                traces.push(trace);
             }
         }
         // https://plotly.com/javascript/plotlyjs-function-reference/#plotlyreact

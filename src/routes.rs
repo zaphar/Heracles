@@ -28,15 +28,26 @@ use tracing::debug;
 use crate::dashboard::{
     loki_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
 };
-use crate::query::{self, QueryResult};
+use crate::query::{self, MetricsQueryResult, LogQueryResult};
 
 type Config = State<Arc<Vec<Dashboard>>>;
+
+#[derive(Serialize, Deserialize)]
+pub enum QueryPayload {
+    Metrics(GraphPayload),
+    Logs(LogsPayload),
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct GraphPayload {
     pub legend_orientation: Option<Orientation>,
     pub yaxes: Vec<AxisDefinition>,
-    pub plots: Vec<QueryResult>,
+    pub plots: Vec<MetricsQueryResult>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct LogsPayload {
+    pub lines: LogQueryResult,
 }
 
 // TODO(jwall): Should this be a completely different payload?
@@ -44,7 +55,7 @@ pub async fn loki_query(
     State(config): Config,
     Path((dash_idx, loki_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
-) -> Json<GraphPayload> {
+) -> Json<QueryPayload> {
     let dash = config
         .get(dash_idx)
         .expect(&format!("No such dashboard index {}", dash_idx));
@@ -54,21 +65,19 @@ pub async fn loki_query(
         .expect("No logs in this dashboard")
         .get(loki_idx)
         .expect(&format!("No such log query {}", loki_idx));
-    let plots = vec![loki_query_data(log, dash, query_to_graph_span(&query))
+    let lines = loki_query_data(log, dash, query_to_graph_span(&query))
         .await
-        .expect("Unable to get log query results")];
-    Json(GraphPayload {
-        legend_orientation: None,
-        yaxes: log.yaxes.clone(),
-        plots,
-    })
+        .expect("Unable to get log query results");
+    Json(QueryPayload::Logs(LogsPayload {
+        lines,
+    }))
 }
 
 pub async fn graph_query(
     State(config): Config,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
-) -> Json<GraphPayload> {
+) -> Json<QueryPayload> {
     debug!("Getting data for query");
     let dash = config
         .get(dash_idx)
@@ -83,11 +92,11 @@ pub async fn graph_query(
     let plots = prom_query_data(graph, dash, query_to_graph_span(&query), &filters)
         .await
         .expect("Unable to get query results");
-    Json(GraphPayload {
+    Json(QueryPayload::Metrics(GraphPayload {
         legend_orientation: graph.legend_orientation.clone(),
         yaxes: graph.yaxes.clone(),
         plots,
-    })
+    }))
 }
 
 fn query_to_filterset<'v, 'a: 'v>(query: &'a HashMap<String, String>) -> Option<HashMap<&'v str, &'v str>> {

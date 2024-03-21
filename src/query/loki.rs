@@ -19,7 +19,7 @@ use reqwest;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
-use super::{LogLine, QueryResult, QueryType, TimeSpan};
+use super::{LogLine, LogQueryResult, QueryType, TimeSpan};
 
 // TODO(jwall): Should I allow non stream returns?
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -62,7 +62,7 @@ pub struct LokiData {
     //stats: // TODO
 }
 
-pub fn loki_to_sample(data: LokiData) -> QueryResult {
+pub fn loki_to_sample(data: LokiData) -> LogQueryResult {
     match data.result_type {
         ResultType::Vector => {
             let mut values = Vec::with_capacity(data.result.len());
@@ -83,7 +83,7 @@ pub fn loki_to_sample(data: LokiData) -> QueryResult {
                     );
                 }
             }
-            QueryResult::StreamInstant(values)
+            LogQueryResult::StreamInstant(values)
         }
         // Stream types are nanoseconds. // Matrix types are seconds
         ResultType::Matrix | ResultType::Streams => {
@@ -109,7 +109,7 @@ pub fn loki_to_sample(data: LokiData) -> QueryResult {
                     );
                 }
             }
-            QueryResult::Stream(values)
+            LogQueryResult::Stream(values)
         }
     }
 }

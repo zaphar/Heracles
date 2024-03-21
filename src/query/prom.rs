@@ -22,7 +22,7 @@ use tracing::debug;
 
 use crate::dashboard::PlotMeta;
 
-use super::{DataPoint, QueryResult, QueryType, TimeSpan};
+use super::{DataPoint, MetricsQueryResult, QueryType, TimeSpan};
 
 pub const FILTER_PLACEHOLDER: &'static str = "FILTERS";
 pub const FILTER_COMMA_PLACEHOLDER: &'static str = ",FILTERS";
@@ -159,9 +159,9 @@ impl<'conn> PromQueryConn<'conn> {
     }
 }
 
-pub fn prom_to_samples(data: Data, meta: PlotMeta) -> QueryResult {
+pub fn prom_to_samples(data: Data, meta: PlotMeta) -> MetricsQueryResult {
     match data {
-        Data::Matrix(mut range) => QueryResult::Series(
+        Data::Matrix(mut range) => MetricsQueryResult::Series(
             range
                 .drain(0..)
                 .map(|rv| {
@@ -180,7 +180,7 @@ pub fn prom_to_samples(data: Data, meta: PlotMeta) -> QueryResult {
                 })
                 .collect(),
         ),
-        Data::Vector(mut vector) => QueryResult::Scalar(
+        Data::Vector(mut vector) => MetricsQueryResult::Scalar(
             vector
                 .drain(0..)
                 .map(|iv| {
@@ -196,7 +196,7 @@ pub fn prom_to_samples(data: Data, meta: PlotMeta) -> QueryResult {
                 })
                 .collect(),
         ),
-        Data::Scalar(sample) => QueryResult::Scalar(vec![(
+        Data::Scalar(sample) => MetricsQueryResult::Scalar(vec![(
             HashMap::new(),
             meta.clone(),
             DataPoint {
