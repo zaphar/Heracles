@@ -90,26 +90,28 @@ impl<'conn> PromQueryConn<'conn> {
                 filter_string.push('"');
             }
         }
+        let mut query = self.query.to_string();
         if self.query.contains(FILTER_PLACEHOLDER_COMMA) {
             debug!("Replacing Filter comma placeholder");
             if !filter_string.is_empty() {
                 filter_string.push(',');
             }
-            self.query.replace(FILTER_PLACEHOLDER, &filter_string)
-        } else if self.query.contains(FILTER_COMMA_PLACEHOLDER) {
+            query = query.replace(FILTER_PLACEHOLDER_COMMA, &filter_string);
+        }
+        if query.contains(FILTER_COMMA_PLACEHOLDER) {
             debug!("Replacing Filter comma placeholder");
             if !filter_string.is_empty() {
                 let mut temp: String = ",".into();
                 temp.push_str(&filter_string);
                 filter_string = temp;
             }
-            self.query.replace(FILTER_PLACEHOLDER, &filter_string)
-        } else if self.query.contains(FILTER_PLACEHOLDER) {
-            debug!("Replacing Filter placeholder");
-            self.query.replace(FILTER_PLACEHOLDER, &filter_string)
-        } else {
-            self.query.to_string()
+            query = query.replace(FILTER_COMMA_PLACEHOLDER, &filter_string);
         }
+        if query.contains(FILTER_PLACEHOLDER) {
+            debug!("Replacing Filter placeholder");
+            query = query.replace(FILTER_PLACEHOLDER, &filter_string)
+        }
+        query
     }
 
     pub async fn get_results(&self) -> anyhow::Result<PromqlResult> {
