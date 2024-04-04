@@ -195,7 +195,7 @@ export class GraphPlot extends HTMLElement {
         self.stopInterval()
         self.fetchData().then((data) => {
             if (!updateOnly) {
-                self.getLabelsForData(data.Metrics || data.Logs.Lines);
+                self.getLabelsForData(data.Metrics || data.Logs.lines);
                 self.buildFilterMenu();
             }
             self.updateGraph(data).then(() => {
@@ -365,6 +365,32 @@ export class GraphPlot extends HTMLElement {
       * @param {QueryData|LogLineList} graph
       */
     getLabelsForData(graph) {
+        if (/** @type {QueryData} */(graph).plots) {
+            this.getLabelsForQueryData(/** @type {QueryData} */(graph));
+        } else {
+            this.getLabelsForLogLines(/** @type {LogLineList} */(graph));
+        }
+    }
+
+    /**
+      * @param {LogLineList} graph
+      */
+    getLabelsForLogLines(graph) {
+        if (graph.Stream) {
+            for (const pair of graph.Stream) {
+                const labels = pair[0];
+                this.populateFilterData(labels);
+            }
+        }
+        if (graph.StreamInstant) {
+            // TODO(zaphar): Handle this?
+        }
+    }
+
+    /**
+      * @param {QueryData} graph
+      */
+    getLabelsForQueryData(graph) {
         const data = graph.plots;
         for (var subplot of data) {
             if (subplot.Series) {
@@ -378,15 +404,6 @@ export class GraphPlot extends HTMLElement {
                     const labels = triple[0];
                     this.populateFilterData(labels);
                 }
-            }
-            if (subplot.Stream) {
-                for (const pair of subplot.Stream) {
-                    const labels = pair[0];
-                    this.populateFilterData(labels);
-                }
-            }
-            if (subplot.StreamInstant) {
-                // TODO(zaphar): Handle this?
             }
         }
     }
