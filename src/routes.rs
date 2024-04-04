@@ -262,7 +262,7 @@ pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
 fn graph_lib_prelude() -> Markup {
     html! {
         script src="/js/plotly.js" { }
-        script type="module" defer src="/js/lib.js" {  }
+        script type="module" defer src="/js/lib.mjs" {  }
         link rel="stylesheet" href="/static/site.css" {  }
     }
 }
@@ -370,13 +370,13 @@ pub async fn plotly() -> Response<String> {
 }
 
 pub async fn lib() -> Response<String> {
-    javascript_response(include_str!("../static/lib.js"))
+    javascript_response(include_str!("../static/lib.mjs"))
 }
 
 pub fn mk_js_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     Router::new()
         .route("/plotly.js", get(plotly))
-        .route("/lib.js", get(lib))
+        .route("/lib.mjs", get(lib))
         .route("/htmx.js", get(htmx))
         .with_state(State(config))
 }
