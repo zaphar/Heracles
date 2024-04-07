@@ -1,0 +1,44 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+<style type="text/css">
+.test {
+    margin-top : 10px;
+    margin-bottom : 10px;
+    border : 3px;
+    border-style : inset;
+    overflow : auto;
+}
+
+.small {
+    height : 20px;
+}
+
+.big {
+    height : 600px;
+}
+
+.comment { color: darkgray; }
+.pass { color: green; }
+.fail { color: red; }
+</style>
+<script type="text/javascript">
+    /** Configuration options
+    *
+    */
+    var tests = [
+        '01_tap.t.js',
+    ];
+</script>
+Heracles custom elements test harness.
+<script type="module">
+    import { Tap, runSuite } from './TAP.mjs';
+    import { tapSuite } from './suite.mjs';
+
+    const pair = Tap.Browser();
+    runSuite(pair.Tap, tapSuite);
+</script>
+</body>
+</html>

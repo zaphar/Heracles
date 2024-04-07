@@ -271,6 +271,10 @@ export class GraphPlot extends HTMLElement {
         return name;
     }
 
+    getFilterLabels() {
+        return this.#filterLabels;
+    }
+
     /**
      * @param {Object<string, string>} labels
      */
