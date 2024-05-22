@@ -83,7 +83,7 @@
 */
 
 /**
- * @typedef PlotMeta
+ * @typedef PlotConfig
  * @type {object}
  * @property {string=} name_format
  * @property {string=} yaxis

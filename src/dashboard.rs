@@ -27,7 +27,7 @@ use crate::query::{
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PlotMeta {
+pub struct PlotConfig {
     name_format: Option<String>,
     fill: Option<FillTypes>,
     yaxis: Option<String>,
@@ -58,12 +58,30 @@ pub enum AxisSide {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum AxisType {
+    #[serde(rename = "-")]
+    Default,
+    #[serde(rename = "linear")]
+    Linear,
+    #[serde(rename = "log")]
+    Log,
+    #[serde(rename = "date")]
+    Date,
+    #[serde(rename = "category")]
+    Category,
+    #[serde(rename = "multicategory")]
+    MultiCategory,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AxisDefinition {
     anchor: Option<String>,
     overlaying: Option<String>,
     side: Option<AxisSide>,
     #[serde(rename = "tickformat")]
     tick_format: Option<String>,
+    #[serde(rename = "type")]
+    plot_type: Option<AxisType>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -86,7 +104,7 @@ pub struct Dashboard {
 pub struct SubPlot {
     pub source: String,
     pub query: String,
-    pub meta: PlotMeta,
+    pub config: PlotConfig,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -222,7 +240,7 @@ impl Graph {
                 &plot.source,
                 &plot.query,
                 self.query_type.clone(),
-                plot.meta.clone(),
+                plot.config.clone(),
             );
             if let Some(filters) = filters {
                 debug!(?filters, "query connection with filters");

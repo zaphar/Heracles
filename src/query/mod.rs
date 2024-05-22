@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::dashboard::PlotMeta;
+use crate::dashboard::PlotConfig;
 
 mod loki;
 mod prom;
@@ -48,8 +48,8 @@ pub struct LogLine {
 
 #[derive(Serialize, Deserialize)]
 pub enum MetricsQueryResult {
-    Series(Vec<(HashMap<String, String>, PlotMeta, Vec<DataPoint>)>),
-    Scalar(Vec<(HashMap<String, String>, PlotMeta, DataPoint)>),
+    Series(Vec<(HashMap<String, String>, PlotConfig, Vec<DataPoint>)>),
+    Scalar(Vec<(HashMap<String, String>, PlotConfig, DataPoint)>),
 }
 
 #[derive(Serialize, Deserialize)]

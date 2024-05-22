@@ -252,13 +252,13 @@ export class GraphPlot extends HTMLElement {
 
     /** 
      * Formats the name for the plot trace.
-     * @param {PlotMeta} meta
+     * @param {PlotConfig} config
      * @param {Map<string, string>} labels
      * @return string
      */
-    formatName(meta, labels) {
+    formatName(config, labels) {
         var name = "";
-        const formatter = meta.name_format
+        const formatter = config.name_format
         if (formatter) {
             name = eval(formatter);
         } else {
@@ -435,8 +435,8 @@ export class GraphPlot extends HTMLElement {
                 return null;
             }
         }
-        const meta = /** @type {PlotMeta} */(triple[1]);
-        var yaxis = meta.yaxis || "y";
+        const config = /** @type {PlotConfig} */(triple[1]);
+        var yaxis = config.yaxis || "y";
         // https://plotly.com/javascript/reference/layout/yaxis/
         const series = triple[2];
         const trace = /** @type GraphTrace */({
@@ -449,10 +449,10 @@ export class GraphPlot extends HTMLElement {
             yaxis: yaxis,
             //yhoverformat: yaxis.tickformat,
         });
-        if (meta.fill) {
-            trace.fill = meta.fill;
+        if (config.fill) {
+            trace.fill = config.fill;
         }
-        var name = this.formatName(meta, labels);
+        var name = this.formatName(config, labels);
         if (name) { trace.name = name; }
         for (const point of series) {
             trace.x.push(new Date(point.timestamp * 1000));
@@ -472,15 +472,15 @@ export class GraphPlot extends HTMLElement {
                 return null;
             }
         }
-        const meta = /** @type {PlotMeta} */(triple[1]);
+        const config = /** @type {PlotConfig} */(triple[1]);
         const series = triple[2];
         const trace = /** @type GraphTrace  */({
             type: "bar",
             x: [],
             y: [],
-            yhoverformat: meta["d3_tick_format"],
+            yhoverformat: config["d3_tick_format"],
         });
-        var name = this.formatName(meta, labels);
+        var name = this.formatName(config, labels);
         if (name) { trace.name = name; }
         trace.y.push(series.value);
         trace.x.push(trace.name);
@@ -490,11 +490,11 @@ export class GraphPlot extends HTMLElement {
     /**
      * @param {Array} stream
      *
-     * @returns {{dates: Array<string>, meta: Array<string>, lines: Array<string>}}
+     * @returns {{dates: Array<string>, config: Array<string>, lines: Array<string>}}
      */
     buildStreamPlot(stream) {
         const dateColumn = [];
-        const metaColumn = [];
+        const configColumn = [];
         const logColumn = [];
 
         loopStream: for (const pair of stream) {
@@ -513,11 +513,11 @@ export class GraphPlot extends HTMLElement {
                 // For streams the timestamps are in nanoseconds
                 let timestamp = new Date(line.timestamp / 1000000);
                 dateColumn.push(timestamp.toISOString());
-                metaColumn.push(labelsName);
+                configColumn.push(labelsName);
                 logColumn.push(ansiToHtml(line.line));
             }
         }
-        return { dates: dateColumn, meta: metaColumn, lines: logColumn };
+        return { dates: dateColumn, config: configColumn, lines: logColumn };
     }
 
     /**
@@ -580,7 +580,7 @@ export class GraphPlot extends HTMLElement {
             });
             const columns = this.buildStreamPlot(logLineList.Stream);
             trace.cells.values.push(columns.dates);
-            trace.cells.values.push(columns.meta);
+            trace.cells.values.push(columns.config);
             trace.cells.values.push(columns.lines);
             traces.push(trace);
         } else if (logLineList.StreamInstant) {

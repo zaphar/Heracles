@@ -10,10 +10,11 @@
           # overlaying: "y"
           side: left
           tickformat: "~%"
+          # type: "log" # The type of axis.
       plots: # List of pluts to show on the graph
         - source: http://heimdall:9001 # Prometheus source uri for this plot
           query: 'sum by (instance)(irate(node_cpu_seconds_total{FILTERS, job="nodestats"}[5m]))' # The PromQL query for this plot
-          meta: # metadata for this plot
+          config: # configuration for this plot
             name_format: "`${labels.instance}`" # javascript template literal to format the trace name
             fill: tozeroy
       span: # The span for this range query
@@ -40,13 +41,13 @@
           # You can use the FILTERS placeholder to indicate where user selected filters should be placed.
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{FILTERS mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{FILTERS, job="nodestats"}[5m]))
-          meta:
+          config:
             name_format: "`${labels.instance} system`"
             yaxis: "y"
         - source: http://heimdall:9001
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{mode="user",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
-          meta:
+          config:
             name_format: "`${labels.instance} user`"
             yaxis: "y2"
     - title: Node memory
@@ -57,7 +58,7 @@
       plots:
         - source: http://heimdall:9001
           query: 'node_memory_MemFree_bytes{job="nodestats"}'
-          meta:
+          config:
             name_format: "`${labels.instance}`"
 - title: Log Test Dashboard 1
   span:

@@ -20,7 +20,7 @@ use prometheus_http_query::{
 };
 use tracing::debug;
 
-use crate::dashboard::PlotMeta;
+use crate::dashboard::PlotConfig;
 
 use super::{DataPoint, MetricsQueryResult, QueryType, TimeSpan};
 
@@ -35,7 +35,7 @@ pub struct PromQueryConn<'conn> {
     span: Option<TimeSpan>,
     query_type: QueryType,
     filters: Option<&'conn HashMap<&'conn str, &'conn str>>,
-    pub meta: PlotMeta,
+    pub meta: PlotConfig,
 }
 
 impl<'conn> PromQueryConn<'conn> {
@@ -43,7 +43,7 @@ impl<'conn> PromQueryConn<'conn> {
         source: &'a str,
         query: &'a str,
         query_type: QueryType,
-        meta: PlotMeta,
+        meta: PlotConfig,
     ) -> Self {
         Self {
             source,
@@ -159,7 +159,7 @@ impl<'conn> PromQueryConn<'conn> {
     }
 }
 
-pub fn prom_to_samples(data: Data, meta: PlotMeta) -> MetricsQueryResult {
+pub fn prom_to_samples(data: Data, meta: PlotConfig) -> MetricsQueryResult {
     match data {
         Data::Matrix(mut range) => MetricsQueryResult::Series(
             range
