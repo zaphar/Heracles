@@ -131,9 +131,7 @@ pub struct Graph {
 #[derive(Deserialize)]
 pub struct LogStream {
     pub title: String,
-    pub legend_orientation: Option<Orientation>,
     pub source: String,
-    pub yaxes: Vec<AxisDefinition>,
     pub query: String,
     pub span: Option<GraphSpan>,
     pub limit: Option<usize>,

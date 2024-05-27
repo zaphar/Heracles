@@ -68,8 +68,6 @@
   logs:
     - title: Systemd Service Logs
       query_type: Range
-      yaxes:
-        - anchor: "y" # This axis is y
       source: http://heimdall:3100
       query: |
         {job="systemd-journal"}
