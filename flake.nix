@@ -25,7 +25,7 @@
         rust-overlay.overlays.default
       ];
       pkgs = import nixpkgs {inherit system overlays;};
-      rust-bin = pkgs.rust-bin.stable."1.71.0".default;
+      rust-bin = pkgs.rust-bin.stable."1.87.0".default;
       naersk-lib = pkgs.callPackage naersk {
         rustc = rust-bin;
         cargo = rust-bin;
@@ -38,7 +38,7 @@
         buildInputs =
           (
             if pkgs.stdenv.isDarwin
-            then with pkgs.darwin.apple_sdk.frameworks; [Security SystemConfiguration]
+            then []
             else [pkgs.openssl]
           )
           ++ [rust-bin];
@@ -46,6 +46,9 @@
     in {
       packages.default = heracles;
       formatter = pkgs.alejandra;
+      devShell = pkgs.mkShell {
+        buildInputs = with pkgs; [ typescript rust-bin cargo-tarpaulin rust-analyzer gnumake ]; 
+      };
     })
     // {
       nixosModules.default = {
