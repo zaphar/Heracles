@@ -14,7 +14,7 @@
 use anyhow;
 use axum::{self, extract::State, routing::*, Router};
 use clap::{self, Parser, ValueEnum};
-use dashboard::{prom_query_data, loki_query_data, Dashboard};
+use dashboard::{prom_query_data, log_query_data, Dashboard};
 use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
@@ -62,7 +62,7 @@ async fn validate(dash: &Dashboard) -> anyhow::Result<()> {
     }
     if let Some(ref logs) = dash.logs {
         for log in logs.iter() {
-            let data = loki_query_data(log, dash, None).await;
+            let data = log_query_data(log, dash, None).await;
             if data.is_err() {
                 error!(err=?data, "Invalid dashboard loki query or queries");
             }

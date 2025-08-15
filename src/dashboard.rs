@@ -23,7 +23,7 @@ use tracing::{debug, error};
 
 use crate::query::LogQueryResult;
 use crate::query::{
-    loki_to_sample, prom_to_samples, LokiConn, PromQueryConn, MetricsQueryResult, QueryType,
+    loki_to_sample, logsql_to_sample, prom_to_samples, LokiConn, LogsqlConn, PromQueryConn, MetricsQueryResult, QueryType,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -128,6 +128,20 @@ pub struct Graph {
     pub d3_tick_format: Option<String>,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub enum LogBackend {
+    #[serde(rename = "loki")]
+    Loki,
+    #[serde(rename = "victorialogs")]
+    VictoriaLogs,
+}
+
+impl Default for LogBackend {
+    fn default() -> Self {
+        LogBackend::Loki
+    }
+}
+
 #[derive(Deserialize)]
 pub struct LogStream {
     pub title: String,
@@ -136,6 +150,8 @@ pub struct LogStream {
     pub span: Option<GraphSpan>,
     pub limit: Option<usize>,
     pub query_type: QueryType,
+    #[serde(default)]
+    pub log_backend: LogBackend,
 }
 
 pub async fn prom_query_data<'a>(
@@ -160,13 +176,35 @@ pub async fn loki_query_data(
     dash: &Dashboard,
     query_span: Option<GraphSpan>,
 ) -> Result<LogQueryResult> {
-    let conn = stream.get_query_connection(&dash.span, &query_span);
+    let conn = stream.get_loki_query_connection(&dash.span, &query_span);
     let response = conn.get_results().await?;
     if response.status == "success" {
         Ok(loki_to_sample(response.data))
     } else {
         // TODO(jwall): Better error handling than this
         panic!("Loki query status: {}", response.status)
+    }
+}
+
+pub async fn victorialogs_query_data(
+    stream: &LogStream,
+    dash: &Dashboard,
+    query_span: Option<GraphSpan>,
+) -> Result<LogQueryResult> {
+    let conn = stream.get_victorialogs_query_connection(&dash.span, &query_span);
+    let results = conn.get_results().await?;
+    Ok(logsql_to_sample(results))
+}
+
+pub async fn log_query_data(
+    stream: &LogStream,
+    dash: &Dashboard,
+    query_span: Option<GraphSpan>,
+) -> Result<LogQueryResult> {
+    debug!(?stream.log_backend, "Getting results for log_backend");
+    match stream.log_backend {
+        LogBackend::Loki => loki_query_data(stream, dash, query_span).await,
+        LogBackend::VictoriaLogs => victorialogs_query_data(stream, dash, query_span).await,
     }
 }
 
@@ -260,7 +298,7 @@ impl Graph {
 }
 
 impl LogStream {
-    pub fn get_query_connection<'conn, 'stream: 'conn>(
+    pub fn get_loki_query_connection<'conn, 'stream: 'conn>(
         &'stream self,
         graph_span: &'stream Option<GraphSpan>,
         query_span: &'stream Option<GraphSpan>,
@@ -268,9 +306,35 @@ impl LogStream {
         debug!(
             query = self.query,
             source = self.source,
-            "Getting query connection for log streams",
+            "Getting loki query connection for log streams",
         );
         let mut conn = LokiConn::new(&self.source, &self.query, self.query_type.clone());
+        // Query params take precendence over all other settings. Then graph settings take
+        // precedences and finally the dashboard settings take precendence
+        if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
+            conn = conn.with_span(end, duration, step_duration);
+        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
+            conn = conn.with_span(end, duration, step_duration);
+        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+            conn = conn.with_span(end, duration, step_duration);
+        }
+        if let Some(limit) = self.limit {
+            conn = conn.with_limit(limit);
+        }
+        conn
+    }
+
+    pub fn get_victorialogs_query_connection<'conn, 'stream: 'conn>(
+        &'stream self,
+        graph_span: &'stream Option<GraphSpan>,
+        query_span: &'stream Option<GraphSpan>,
+    ) -> LogsqlConn<'conn> {
+        debug!(
+            query = self.query,
+            source = self.source,
+            "Getting victorialogs query connection for log streams",
+        );
+        let mut conn = LogsqlConn::new(&self.source, &self.query, self.query_type.clone());
         // Query params take precendence over all other settings. Then graph settings take
         // precedences and finally the dashboard settings take precendence
         if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {

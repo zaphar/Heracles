@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::dashboard::{
-    loki_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
+    log_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
 };
 use crate::query::{self, MetricsQueryResult, LogQueryResult};
 
@@ -65,7 +65,7 @@ pub async fn loki_query(
         .expect("No logs in this dashboard")
         .get(loki_idx)
         .expect(&format!("No such log query {}", loki_idx));
-    let lines = loki_query_data(log, dash, query_to_graph_span(&query))
+    let lines = log_query_data(log, dash, query_to_graph_span(&query))
         .await
         .expect("Unable to get log query results");
     Json(QueryPayload::Logs(LogsPayload {

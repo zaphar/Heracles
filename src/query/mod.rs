@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::dashboard::PlotConfig;
 
 mod loki;
+mod logsql;
 mod prom;
 
 #[derive(Deserialize, Clone, Debug)]
@@ -103,4 +104,5 @@ impl std::fmt::Debug for LogQueryResult {
     }
 }
 pub use loki::*;
+pub use logsql::*;
 pub use prom::*;

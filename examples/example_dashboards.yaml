@@ -12,7 +12,7 @@
           tickformat: "~%"
           # type: "log" # The type of axis.
       plots: # List of pluts to show on the graph
-        - source: http://heimdall:9001 # Prometheus source uri for this plot
+        - source: http://vindler:9001 # Prometheus source uri for this plot
           query: 'sum by (instance)(irate(node_cpu_seconds_total{FILTERS, job="nodestats"}[5m]))' # The PromQL query for this plot
           config: # configuration for this plot
             name_format: "`${labels.instance}`" # javascript template literal to format the trace name
@@ -37,14 +37,14 @@
           side: right # show this axis on the right side instead of the left
           tickformat: "~%"
       plots:
-        - source: http://heimdall:9001
+        - source: http://vindler:9001
           # You can use the FILTERS placeholder to indicate where user selected filters should be placed.
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{FILTERS mode="system",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{FILTERS, job="nodestats"}[5m]))
           config:
             name_format: "`${labels.instance} system`"
             yaxis: "y"
-        - source: http://heimdall:9001
+        - source: http://vindler:9001
           query: |
             sum by (instance)(irate(node_cpu_seconds_total{mode="user",job="nodestats"}[5m])) / sum by (instance)(irate(node_cpu_seconds_total{job="nodestats"}[5m]))
           config:
@@ -56,7 +56,7 @@
         - anchor: "y"
           tickformat: "~s"
       plots:
-        - source: http://heimdall:9001
+        - source: http://vindler:9001
           query: 'node_memory_MemFree_bytes{job="nodestats"}'
           config:
             name_format: "`${labels.instance}`"
@@ -67,7 +67,8 @@
     step_duration: 5min
   logs:
     - title: Systemd Service Logs
+      log_backend: victorialogs
       query_type: Range
-      source: http://heimdall:3100
+      source: http://vindler:3100
       query: |
         {job="systemd-journal"}
