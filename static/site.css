@@ -58,6 +58,10 @@ body * {
    flex-direction: row;
 }
 
+.max-120-char-width {
+   max-width: 120em;
+}
+
 .flex-item-grow {
    flex: 1 0 auto;
 }
@@ -71,4 +75,81 @@ graph-plot {
     border-radius: 4px;
     display: flex;
     flex-direction: column;
+}
+
+/* Log viewer styles */
+.log-container {
+    height: 400px;
+    width: 120em;
+    margin-top: 16px;
+    border: 1px solid var(--grid-line-color);
+    border-radius: 4px;
+    overflow: scroll;
+    background-color: var(--plot-background-color);
+    font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.log-lines {
+    padding: 8px;
+    color: var(--text-color);
+    min-width: 100%;
+    box-sizing: border-box;
+}
+
+.log-line {
+    margin-bottom: 1px;
+    padding: 2px 4px;
+    border-left: 2px solid transparent;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.log-line:hover {
+    border-left-color: var(--text-color);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.log-line.expanded {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.log-line.expanded:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.log-main-line {
+    display: flex;
+    align-items: flex-start;
+    white-space: nowrap;
+}
+
+.log-timestamp {
+    color: var(--text-color);
+    opacity: 0.9;
+    margin-right: 8px;
+    font-size: 11px;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.log-content {
+    white-space: nowrap;
+}
+
+.log-labels {
+    display: none;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    font-size: 10px;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.log-labels.visible {
+    display: block;
 }

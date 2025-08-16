@@ -154,7 +154,7 @@ pub fn log_component(dash_idx: usize, log_idx: usize, log: &LogStream) -> Markup
     html! {
         div {
             h2 { (log.title) " - " a href=(log_embed_uri) { "embed url" } }
-            log-plot uri=(log_data_uri) id=(log_id) { }
+            log-viewer uri=(log_data_uri) id=(log_id) { }
         }
     }
 }

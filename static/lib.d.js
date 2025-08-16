@@ -90,3 +90,37 @@
  * @property {("tonexty"|"tozeroy"|"tonextx"|"tozerox"|"toself"|"tonext")=} fill
  */
 
+/**
+ * @typedef LogViewerLine
+ * @type {object}
+ * @property {string} id - Unique identifier for the line
+ * @property {number} timestamp - Timestamp in milliseconds
+ * @property {string} labels - Formatted label string
+ * @property {string} content - The actual log content
+ */
+
+/**
+ * LogViewer custom element for displaying streaming log lines
+ * @extends HTMLElement
+ */
+class LogViewer extends HTMLElement {
+    /**
+     * Toggle auto-scroll behavior
+     * @returns {void}
+     */
+    toggleAutoScroll();
+    
+    /**
+     * Clear all displayed log lines
+     * @returns {void}
+     */
+    clearLogs();
+    
+    /**
+     * Reset the log viewer and restart polling
+     * @param {boolean=} updateOnly - If true, only updates data without rebuilding filters
+     * @returns {void}
+     */
+    reset(updateOnly);
+}
+

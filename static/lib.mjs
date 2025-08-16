@@ -131,7 +131,7 @@ class ElementConfig {
         this.menuContainer = this.#container.appendChild(document.createElement('div'));
         // TODO(jwall): These should probably be done as template clones so we have less places
         // to look for class attributes.
-        this.menuContainer.setAttribute("class", "row-flex");
+        this.menuContainer.setAttribute("class", "row-flex max-120-char-width");
         this.targetNode = this.#container.appendChild(document.createElement("div"));
     }
 
@@ -802,6 +802,11 @@ export class SpanSelector extends HTMLElement {
             node.setAttribute('duration', this.#durationInput.value);
             node.setAttribute('step-duration', this.#stepDurationInput.value);
         }
+        for (var node of document.getElementsByTagName(LogViewer.elementName)) {
+            node.setAttribute('end', this.#endInput.value);
+            node.setAttribute('duration', this.#durationInput.value);
+            node.setAttribute('step-duration', this.#stepDurationInput.value);
+        }
     }
 
     static elementName = "span-selector";
@@ -815,4 +820,367 @@ export class SpanSelector extends HTMLElement {
 }
 
 SpanSelector.registerElement();
+
+/**
+ * Custom element for displaying log lines in a scrolling container.
+ * Supports real-time updates and automatic scrolling to new content.
+ *
+ * @extends HTMLElement
+ */
+export class LogViewer extends HTMLElement {
+    /** @type {?ElementConfig} */
+    #config;
+    /** @type {?HTMLDivElement} */
+    #logContainer;
+    /** @type {?HTMLDivElement} */
+    #logLines;
+    /** @type {Set<string>} */
+    #displayedLines;
+    /** @type {boolean} */
+    #autoScroll = true;
+
+    constructor() {
+        super();
+        this.#config = new ElementConfig(this);
+        this.#displayedLines = new Set();
+    }
+
+    static observedAttributes = ['uri', 'width', 'height', 'poll-seconds', 'end', 'duration', 'step-duration', 'allow-uri-filter'];
+
+    /**
+     * Callback for attributes changes.
+     *
+     * @param {string} name       - The name of the attribute.
+     * @param {?string} _oldValue - The old value for the attribute
+     * @param {?string} newValue  - The new value for the attribute
+     */
+    attributeChangedCallback(name, _oldValue, newValue) {
+        this.#config.attributeChangedHandler(name, newValue);
+        this.reset();
+    }
+
+    connectedCallback() {
+        this.#config.connectedHandler(this);
+        this.#createLogContainer();
+        this.reset(true);
+    }
+
+    disconnectedCallback() {
+        this.#config.stopInterval();
+    }
+
+    static elementName = "log-viewer";
+
+    /** Registers the custom element if it doesn't already exist */
+    static registerElement() {
+        if (!customElements.get(LogViewer.elementName)) {
+            customElements.define(LogViewer.elementName, LogViewer);
+        }
+    }
+
+    #createLogContainer() {
+        // Create the main container
+        this.#logContainer = document.createElement('div');
+        this.#logContainer.className = 'log-container';
+
+        // Create the scrollable log lines container
+        this.#logLines = document.createElement('div');
+        this.#logLines.className = 'log-lines';
+
+        // Add scroll event listener to detect manual scrolling
+        this.#logContainer.addEventListener('scroll', () => {
+            const container = this.#logContainer;
+            const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 5;
+            this.#autoScroll = isAtBottom;
+        });
+
+        this.#logContainer.appendChild(this.#logLines);
+        
+        // Replace the target node content
+        const targetNode = this.#config.getTargetNode();
+        targetNode.innerHTML = '';
+        targetNode.appendChild(this.#logContainer);
+    }
+
+    /**
+     * Resets the entire log viewer and then restarts polling.
+     * @param {boolean=} updateOnly
+     */
+    reset(updateOnly) {
+        const self = this;
+        self.#config.stopInterval();
+        
+        if (!updateOnly) {
+            self.#displayedLines.clear();
+            if (self.#logLines) self.#logLines.innerHTML = '';
+        }
+
+        self.#config.fetchData().then((data) => {
+            if (!updateOnly) {
+                self.getLabelsForLogLines(data.Metrics || data.Logs?.lines);
+                self.#config.buildFilterMenu(this);
+            }
+            self.updateLogView(data).then(() => {
+                self.#config.intervalId = setInterval(() => self.updateLogView(), 1000 * self.#config.pollSeconds);
+            });
+        });
+    }
+
+    /**
+     * @param {LogLineList} graph
+     */
+    getLabelsForLogLines(graph) {
+        if (!graph) return;
+        
+        if (graph.Stream) {
+            for (const pair of graph.Stream) {
+                const labels = pair[0];
+                this.#config.populateFilterData(labels);
+            }
+        }
+        if (graph.StreamInstant) {
+            for (const pair of graph.StreamInstant) {
+                const labels = pair[0];
+                this.#config.populateFilterData(labels);
+            }
+        }
+    }
+
+    /**
+     * Update the log view with new data.
+     *
+     * @param {?QueryPayload=} maybeGraph
+     */
+    async updateLogView(maybeGraph) {
+        let graph = maybeGraph;
+        if (!graph) {
+            graph = await this.#config.fetchData();
+        }
+
+        if (graph.Logs?.lines) {
+            this.#processLogLines(graph.Logs.lines);
+        }
+    }
+
+    /**
+     * Process and display log lines
+     * @param {LogLineList} logLineList
+     */
+    #processLogLines(logLineList) {
+        const newLines = [];
+
+        if (logLineList.Stream) {
+            newLines.push(...this.#processStreamLines(logLineList.Stream));
+        }
+        
+        if (logLineList.StreamInstant) {
+            newLines.push(...this.#processStreamInstantLines(logLineList.StreamInstant));
+        }
+
+        // Sort by timestamp and add new lines
+        newLines.sort((a, b) => a.timestamp - b.timestamp);
+        
+        const hadContent = this.#logLines.children.length > 0;
+        
+        for (const line of newLines) {
+            this.#addLogLine(line);
+        }
+
+        // Only auto-scroll if we had content before and auto-scroll is enabled
+        // For initial load, stay at the top
+        if (this.#autoScroll && hadContent) {
+            this.#scrollToBottom();
+        }
+    }
+
+    /**
+     * Process Stream format log lines
+     * @param {Array} stream
+     * @returns {Array}
+     */
+    #processStreamLines(stream) {
+        const lines = [];
+        
+        loopStream: for (const pair of stream) {
+            const labels = pair[0];
+            
+            // Apply filters
+            for (const label in labels) {
+                const show = this.#config.filteredLabelSets[label];
+                if (show && !show.includes(labels[label])) {
+                    continue loopStream;
+                }
+            }
+
+            const logLines = pair[1];
+            const labelStr = this.#formatLabels(labels);
+            
+            for (const line of logLines) {
+                const timestamp = line.timestamp / 1000000; // Convert from nanoseconds to milliseconds
+                const lineId = `${timestamp}-${line.line}`;
+                
+                if (!this.#displayedLines.has(lineId)) {
+                    lines.push({
+                        id: lineId,
+                        timestamp,
+                        labels: labelStr,
+                        content: line.line
+                    });
+                }
+            }
+        }
+        
+        return lines;
+    }
+
+    /**
+     * Process StreamInstant format log lines
+     * @param {Array} streamInstant
+     * @returns {Array}
+     */
+    #processStreamInstantLines(streamInstant) {
+        const lines = [];
+        
+        loopStream: for (const pair of streamInstant) {
+            const labels = pair[0];
+            
+            // Apply filters
+            for (const label in labels) {
+                const show = this.#config.filteredLabelSets[label];
+                if (show && !show.includes(labels[label])) {
+                    continue loopStream;
+                }
+            }
+
+            const line = pair[1];
+            const labelStr = this.#formatLabels(labels);
+            const timestamp = line.timestamp;
+            const lineId = `${timestamp}-${line.line}`;
+            
+            if (!this.#displayedLines.has(lineId)) {
+                lines.push({
+                    id: lineId,
+                    timestamp,
+                    labels: labelStr,
+                    content: line.line
+                });
+            }
+        }
+        
+        return lines;
+    }
+
+    /**
+     * Format labels for display
+     * @param {Object<string, string>} labels
+     * @returns {string}
+     */
+    #formatLabels(labels) {
+        const labelPairs = [];
+        for (const [key, value] of Object.entries(labels)) {
+            labelPairs.push(`${key}=${value}`);
+        }
+        return labelPairs.join(' ');
+    }
+
+    /**
+     * Add a single log line to the display
+     * @param {Object} line
+     */
+    #addLogLine(line) {
+        if (this.#displayedLines.has(line.id)) {
+            return;
+        }
+
+        this.#displayedLines.add(line.id);
+
+        const lineElement = document.createElement('div');
+        lineElement.className = 'log-line';
+
+        // Main line container
+        const mainLineDiv = document.createElement('div');
+        mainLineDiv.className = 'log-main-line';
+
+        const timestamp = new Date(line.timestamp / 1000000).toISOString();
+        const timestampSpan = document.createElement('span');
+        timestampSpan.className = 'log-timestamp';
+        timestampSpan.textContent = timestamp;
+
+        const contentSpan = document.createElement('span');
+        contentSpan.className = 'log-content';
+        contentSpan.innerHTML = ansiToHtml(line.content);
+
+        mainLineDiv.appendChild(timestampSpan);
+        mainLineDiv.appendChild(contentSpan);
+
+        // Labels container (initially hidden)
+        const labelsDiv = document.createElement('div');
+        labelsDiv.className = 'log-labels';
+        labelsDiv.textContent = line.labels;
+
+        lineElement.appendChild(mainLineDiv);
+        lineElement.appendChild(labelsDiv);
+
+        // Click handler to toggle labels visibility
+        lineElement.addEventListener('click', () => {
+            const isExpanded = labelsDiv.classList.contains('visible');
+            if (isExpanded) {
+                labelsDiv.classList.remove('visible');
+                lineElement.classList.remove('expanded');
+            } else {
+                labelsDiv.classList.add('visible');
+                lineElement.classList.add('expanded');
+            }
+        });
+
+        this.#logLines.appendChild(lineElement);
+
+        // Limit the number of displayed lines to prevent memory issues
+        const maxLines = 1000;
+        if (this.#logLines.children.length > maxLines) {
+            const linesToRemove = this.#logLines.children.length - maxLines;
+            for (let i = 0; i < linesToRemove; i++) {
+                this.#logLines.removeChild(this.#logLines.firstChild);
+            }
+            
+            // Clean up the displayed lines set to prevent memory leaks
+            if (this.#displayedLines.size > maxLines * 1.2) {
+                this.#displayedLines.clear();
+                // Re-add current visible lines
+                for (const child of this.#logLines.children) {
+                    const timestamp = child.querySelector('span').textContent;
+                    const content = child.querySelector('span:last-child').textContent;
+                    this.#displayedLines.add(`${new Date(timestamp).getTime()}-${content}`);
+                }
+            }
+        }
+    }
+
+    /**
+     * Scroll to the bottom of the log container
+     */
+    #scrollToBottom() {
+        this.#logContainer.scrollTop = this.#logContainer.scrollHeight;
+    }
+
+    /**
+     * Toggle auto-scroll behavior
+     */
+    toggleAutoScroll() {
+        this.#autoScroll = !this.#autoScroll;
+        if (this.#autoScroll) {
+            this.#scrollToBottom();
+        }
+    }
+
+    /**
+     * Clear all displayed log lines
+     */
+    clearLogs() {
+        this.#displayedLines.clear();
+        this.#logLines.innerHTML = '';
+    }
+}
+
+LogViewer.registerElement();
 
