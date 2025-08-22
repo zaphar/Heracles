@@ -321,7 +321,7 @@ class ElementConfig {
                 this.step_duration = newValue;
                 break;
             case 'd3-tick-format':
-                this.config.d3TickFormat = newValue;
+                this.d3TickFormat = newValue;
                 break;
             case 'allow-uri-filters':
                 this.allowUriFilters = Boolean(newValue);
