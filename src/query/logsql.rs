@@ -26,7 +26,7 @@ pub struct LogsqlResult {
     #[serde(rename = "_msg")]
     pub msg: String,
     #[serde(rename = "_stream")]
-    pub stream: String,
+    pub stream: Option<String>,
     #[serde(rename = "_time")]
     pub time: String,
     #[serde(flatten)]
@@ -46,7 +46,7 @@ pub fn logsql_to_sample(results: Vec<LogsqlResult>) -> LogQueryResult {
             });
             
         let mut labels = HashMap::new();
-        labels.insert("stream".to_string(), result.stream);
+        if let Some(stream) = result.stream { labels.insert("stream".to_string(), stream); }
         
         for (key, value) in result.fields {
             if let Some(string_val) = value.as_str() {

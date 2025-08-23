@@ -980,7 +980,10 @@ export class LogViewer extends HTMLElement {
         // Sort by timestamp and add new lines
         newLines.sort((a, b) => a.timestamp - b.timestamp);
         
-        const hadContent = this.#logLines.children.length > 0;
+        var hadContent = 0;
+        if (this.#logLines) {
+            hadContent = this.#logLines.children.length > 0;
+        }
         
         for (const line of newLines) {
             this.#addLogLine(line);

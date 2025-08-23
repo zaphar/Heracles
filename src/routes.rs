@@ -20,6 +20,7 @@ use axum::{
     Json, Router,
 };
 
+// TODO(zaphar): Handle query errors with a reasonable response.
 // https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
 use serde::{Deserialize, Serialize};
