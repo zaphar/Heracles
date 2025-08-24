@@ -785,8 +785,8 @@ export class LogViewer extends HTMLElement {
             newLines.push(...this.#processStreamInstantLines(logLineList.StreamInstant));
         }
 
-        // Sort by timestamp and add new lines
-        newLines.sort((a, b) => a.timestamp - b.timestamp);
+        // Sort by timestamp in descending order
+        newLines.sort((a, b) => b.timestamp - a.timestamp);
         
         var hadContent = 0;
         if (this.#logLines) {
@@ -909,6 +909,33 @@ export class LogViewer extends HTMLElement {
         lineElement.className = 'log-line';
 
         // Main line container
+        this.createLineElement(line, lineElement);
+
+        this.#logLines.appendChild(lineElement);
+
+        // Limit the number of displayed lines to prevent memory issues
+        // TODO(zaphar): This should probably be set via a property.
+        const maxLines = 1000;
+        if (this.#logLines.children.length > maxLines) {
+            const linesToRemove = this.#logLines.children.length - maxLines;
+            for (let i = 0; i < linesToRemove; i++) {
+                this.#logLines.removeChild(this.#logLines.firstChild);
+            }
+            
+            // Clean up the displayed lines set to prevent memory leaks
+            if (this.#displayedLines.size > maxLines * 1.2) {
+                this.#displayedLines.clear();
+                // Re-add current visible lines
+                for (const child of this.#logLines.children) {
+                    const timestamp = child.querySelector('span').textContent;
+                    const content = child.querySelector('span:last-child').textContent;
+                    this.#displayedLines.add(`${new Date(timestamp).getTime()}-${content}`);
+                }
+            }
+        }
+    }
+
+    createLineElement(line, lineElement) {
         const mainLineDiv = document.createElement('div');
         mainLineDiv.className = 'log-main-line';
 
@@ -943,28 +970,6 @@ export class LogViewer extends HTMLElement {
                 lineElement.classList.add('expanded');
             }
         });
-
-        this.#logLines.appendChild(lineElement);
-
-        // Limit the number of displayed lines to prevent memory issues
-        const maxLines = 1000;
-        if (this.#logLines.children.length > maxLines) {
-            const linesToRemove = this.#logLines.children.length - maxLines;
-            for (let i = 0; i < linesToRemove; i++) {
-                this.#logLines.removeChild(this.#logLines.firstChild);
-            }
-            
-            // Clean up the displayed lines set to prevent memory leaks
-            if (this.#displayedLines.size > maxLines * 1.2) {
-                this.#displayedLines.clear();
-                // Re-add current visible lines
-                for (const child of this.#logLines.children) {
-                    const timestamp = child.querySelector('span').textContent;
-                    const content = child.querySelector('span:last-child').textContent;
-                    this.#displayedLines.add(`${new Date(timestamp).getTime()}-${content}`);
-                }
-            }
-        }
     }
 
     /**
