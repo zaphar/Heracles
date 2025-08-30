@@ -725,7 +725,7 @@ export class LogViewer extends HTMLElement {
 
         self.#config.fetchData().then((data) => {
             if (!updateOnly) {
-                self.getLabelsForLogLines(data.Metrics || data.Logs?.lines);
+                self.getLabelsForLogLines(data.Logs?.lines);
                 self.#config.buildFilterMenu(this);
             }
             self.updateLogView(data).then(() => {
@@ -751,6 +751,10 @@ export class LogViewer extends HTMLElement {
                 const labels = pair[0];
                 this.#config.populateFilterData(labels);
             }
+        }
+        if (graph.Fields) {
+            // For table data, we don't populate filter data since it's structured differently
+            // The filtering will be done on the table rows instead
         }
     }
 
@@ -783,6 +787,9 @@ export class LogViewer extends HTMLElement {
         
         if (logLineList.StreamInstant) {
             newLines.push(...this.#processStreamInstantLines(logLineList.StreamInstant));
+        }
+        if (logLineList.Fields) {
+            newLines.push(...this.#processFieldsLines(logLineList.Fields));
         }
 
         // Sort by timestamp in descending order
@@ -881,6 +888,22 @@ export class LogViewer extends HTMLElement {
         return lines;
     }
 
+    /** @param logTable {Table} */
+    #processFieldsLines(logTable) {
+        // For Fields result type, we create a single table element instead of individual lines
+        const tableId = `table-${Date.now()}`;
+        
+        if (!this.#displayedLines.has(tableId)) {
+            this.#displayedLines.add(tableId);
+            
+            // Clear existing content and display table
+            this.#logLines.innerHTML = '';
+            this.#createTableView(logTable);
+        }
+        
+        return []; // Return empty since we're handling display directly
+    }
+
     /**
      * Format labels for display
      * @param {Object<string, string>} labels
@@ -970,6 +993,49 @@ export class LogViewer extends HTMLElement {
                 lineElement.classList.add('expanded');
             }
         });
+    }
+
+    /**
+     * Create and display a table view for Fields data
+     * @param {Table} logTable
+     */
+    #createTableView(logTable) {
+        const table = document.createElement('table');
+        table.className = 'log-table';
+        
+        // Create header row
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        
+        for (const header of logTable.header) {
+            const th = document.createElement('th');
+            th.textContent = header;
+            th.className = 'log-table-header';
+            headerRow.appendChild(th);
+        }
+        
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+        
+        // Create body rows
+        const tbody = document.createElement('tbody');
+        
+        for (const row of logTable.rows) {
+            const tr = document.createElement('tr');
+            tr.className = 'log-table-row';
+            
+            for (const cell of row) {
+                const td = document.createElement('td');
+                td.className = 'log-table-cell';
+                td.textContent = cell;
+                tr.appendChild(td);
+            }
+            
+            tbody.appendChild(tr);
+        }
+        
+        table.appendChild(tbody);
+        this.#logLines.appendChild(table);
     }
 
     /**

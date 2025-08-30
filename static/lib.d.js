@@ -20,10 +20,18 @@
  */
 
 /**
+ * @typedef LogTable
+ * @type {object}
+ * @property {Array<string>=} header
+ * @property {Array<Array<string>>=} rows
+ */
+
+/**
  * @typedef LogLineList
  * @type {object}
  * @property {Array=} StreamInstant - Timestamps are in seconds
  * @property {Array=} Stream - Timestamps are in nanoseconds
+ * @property {LogTable} Fields - No timestamps or messages
  */
 
 /**
@@ -98,29 +106,3 @@
  * @property {string} labels - Formatted label string
  * @property {string} content - The actual log content
  */
-
-/**
- * LogViewer custom element for displaying streaming log lines
- * @extends HTMLElement
- */
-class LogViewer extends HTMLElement {
-    /**
-     * Toggle auto-scroll behavior
-     * @returns {void}
-     */
-    toggleAutoScroll();
-    
-    /**
-     * Clear all displayed log lines
-     * @returns {void}
-     */
-    clearLogs();
-    
-    /**
-     * Reset the log viewer and restart polling
-     * @param {boolean=} updateOnly - If true, only updates data without rebuilding filters
-     * @returns {void}
-     */
-    reset(updateOnly);
-}
-

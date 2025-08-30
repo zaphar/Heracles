@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use anyhow::Result;
 use chrono::prelude::*;
@@ -19,51 +19,89 @@ use reqwest;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
+use crate::query::Table;
+
 use super::{LogLine, LogQueryResult, QueryType, TimeSpan};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogsqlResult {
     #[serde(rename = "_msg")]
-    pub msg: String,
+    pub msg: Option<String>,
     #[serde(rename = "_stream")]
     pub stream: Option<String>,
     #[serde(rename = "_time")]
-    pub time: String,
+    pub time: Option<String>,
     #[serde(flatten)]
     pub fields: HashMap<String, serde_json::Value>,
 }
 
 
 pub fn logsql_to_sample(results: Vec<LogsqlResult>) -> LogQueryResult {
-    let mut values = Vec::with_capacity(results.len());
-    
-    for result in results {
-        let timestamp = DateTime::parse_from_rfc3339(&result.time)
-            .map(|dt| dt.timestamp_nanos_opt().unwrap_or(0) as f64)
-            .unwrap_or_else(|_| {
-                error!("Invalid timestamp format: {}", result.time);
-                0.0
-            });
-            
-        let mut labels = HashMap::new();
-        if let Some(stream) = result.stream { labels.insert("stream".to_string(), stream); }
-        
-        for (key, value) in result.fields {
-            if let Some(string_val) = value.as_str() {
-                labels.insert(key, string_val.to_string());
+    if let Some(first) = results.first() {
+        if first.msg.is_none() {
+            // convert into a LogQueryResult::Fields
+            let mut header = BTreeSet::from_iter(first.fields.keys().cloned());
+            let mut rows = vec![]; 
+            for result in &results {
+                if result.fields.len() > header.len() {
+                    for k in result.fields.keys() {
+                        header.insert(k.clone());
+                    }
+                }
             }
+            for result in results {
+                let row = header.iter().map(|h| {
+                    result.fields.get(h)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                }).collect();
+                rows.push(row);
+            }
+            LogQueryResult::Fields(Table { 
+                header: header.into_iter().collect(), 
+                rows 
+            })
+        } else {
+            // Process as stream instant logs
+            let mut values = Vec::with_capacity(results.len());
+            for result in results {
+                let timestamp = result.time.as_ref()
+                    .and_then(|t| DateTime::parse_from_rfc3339(t).ok())
+                    .map(|dt| dt.timestamp_nanos_opt().unwrap_or(0) as f64)
+                    .unwrap_or_else(|| {
+                        error!("Invalid timestamp format: {:?}", result.time);
+                        0.0
+                    });
+                    
+                let mut labels = HashMap::new();
+                if let Some(stream) = result.stream { 
+                    labels.insert("stream".to_string(), stream); 
+                }
+                
+                for (key, value) in result.fields {
+                    if let Some(string_val) = value.as_str() {
+                        labels.insert(key, string_val.to_string());
+                    }
+                }
+                
+                values.push((
+                    labels,
+                    LogLine {
+                        timestamp,
+                        line: result.msg.unwrap_or_else(|| Default::default()),
+                    },
+                ));
+            }
+            LogQueryResult::StreamInstant(values)
         }
-        
-        values.push((
-            labels,
-            LogLine {
-                timestamp,
-                line: result.msg,
-            },
-        ));
+    } else {
+        // Empty results case
+        LogQueryResult::Fields(Table { 
+            header: vec![], 
+            rows: vec![] 
+        })
     }
-    
-    LogQueryResult::StreamInstant(values)
 }
 
 

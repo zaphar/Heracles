@@ -72,3 +72,9 @@
       source: http://vindler:3100
       query: |
         {job="systemd-journal"} | fields host, syslog_identifier, _msg, _stream, _time
+    - title: http Stats Logging
+      log_backend: victorialogs
+      query_type: Range
+      source: http://vindler:3100
+      query: |
+        {job="http_access_logs", filename="/var/log/caddy/access.log"} | unpack_json _msg | fields request.headers.User-Agent, status | stats by (request.headers.User-Agent, status) count() count | sort by (count desc)

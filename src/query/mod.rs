@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::dashboard::PlotConfig;
 
-mod loki;
 mod logsql;
+mod loki;
 mod prom;
 
 #[derive(Deserialize, Clone, Debug)]
@@ -53,10 +53,18 @@ pub enum MetricsQueryResult {
     Scalar(Vec<(HashMap<String, String>, PlotConfig, DataPoint)>),
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Table {
+    pub header: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub enum LogQueryResult {
     StreamInstant(Vec<(HashMap<String, String>, LogLine)>),
     Stream(Vec<(HashMap<String, String>, Vec<LogLine>)>),
+    // TODO(jwall): Stats based variant with no "line" just fields
+    Fields(Table),
 }
 
 impl std::fmt::Debug for MetricsQueryResult {
@@ -99,10 +107,14 @@ impl std::fmt::Debug for LogQueryResult {
                     ))?
                 }
             }
+            LogQueryResult::Fields(table) => {
+                f.write_fmt(format_args!("headers: {}", table.header.len()))?;
+                f.write_fmt(format_args!("table rows = {}", table.rows.len()))?;
+            }
         }
         Ok(())
     }
 }
-pub use loki::*;
 pub use logsql::*;
+pub use loki::*;
 pub use prom::*;
