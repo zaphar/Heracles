@@ -5,7 +5,7 @@
       url = "github:oxalica/rust-overlay?ref=stable";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    naersk.url = "github:nix-community/naersk";
+    crane.url = "github:ipetkov/crane";
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
@@ -16,7 +16,7 @@
   outputs = {
     nixpkgs,
     flake-utils,
-    naersk,
+    crane,
     rust-overlay,
     ...
   }:
@@ -26,28 +26,21 @@
       ];
       pkgs = import nixpkgs {inherit system overlays;};
       rust-bin = pkgs.rust-bin.stable."1.87.0".default;
-      naersk-lib = pkgs.callPackage naersk {
-        rustc = rust-bin;
-        cargo = rust-bin;
-      };
-      heracles = naersk-lib.buildPackage {
+      craneLib = crane.mkLib pkgs;
+      heracles = craneLib.buildPackage {
         name = "heracles";
         verion = "0.0.1";
         src = ./.;
-        nativeBuildInputs = [pkgs.pkg-config];
-        buildInputs =
-          (
-            if pkgs.stdenv.isDarwin
+        #nativeBuildInputs = [pkgs.pkg-config];
+        buildInputs = if pkgs.stdenv.isDarwin
             then []
-            else [pkgs.openssl]
-          )
-          ++ [rust-bin];
+            else [pkgs.openssl];
       };
     in {
       packages.default = heracles;
       formatter = pkgs.alejandra;
-      devShell = pkgs.mkShell {
-        buildInputs = with pkgs; [ typescript rust-bin cargo-tarpaulin rust-analyzer gnumake ]; 
+      devShell = craneLib.devShell {
+        buildInputs = with pkgs; [ typescript cargo-tarpaulin rust-analyzer gnumake ]; 
       };
     })
     // {
