@@ -31,7 +31,7 @@
         name = "heracles";
         verion = "0.0.1";
         src = ./.;
-        #nativeBuildInputs = [pkgs.pkg-config];
+        nativeBuildInputs = [pkgs.pkg-config];
         buildInputs = if pkgs.stdenv.isDarwin
             then []
             else [pkgs.openssl];
