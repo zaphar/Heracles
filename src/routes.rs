@@ -370,24 +370,27 @@ pub async fn app(State(config): State<Config>, dash_idx: Option<usize>) -> Marku
     render_index(config, dash_idx)
 }
 
-pub fn javascript_response(content: &str) -> Response<String> {
+fn static_response(content: &str, content_type: &str, max_age: u32) -> Response<String> {
     Response::builder()
-        .header("Content-Type", "text/javascript")
+        .header("Content-Type", content_type)
+        .header("Cache-Control", format!("public, max-age={}", max_age))
         .body(content.to_string())
-        .expect("Invalid javascript response")
+        .expect("Invalid static response")
 }
 
-// TODO(jwall): Should probably hook in one of the axum directory serving crates here.
 pub async fn htmx() -> Response<String> {
-    javascript_response(include_str!("../static/htmx.min.js"))
+    // Vendored library — cache for 7 days
+    static_response(include_str!("../static/htmx.min.js"), "text/javascript", 604800)
 }
 
 pub async fn plotly() -> Response<String> {
-    javascript_response(include_str!("../static/plotly-2.27.0.min.js"))
+    // Vendored library — cache for 7 days
+    static_response(include_str!("../static/plotly-2.27.0.min.js"), "text/javascript", 604800)
 }
 
 pub async fn lib() -> Response<String> {
-    javascript_response(include_str!("../static/lib.mjs"))
+    // App code — cache for 5 minutes
+    static_response(include_str!("../static/lib.mjs"), "text/javascript", 300)
 }
 
 pub fn mk_js_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
@@ -398,19 +401,13 @@ pub fn mk_js_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
         .with_state(State(config))
 }
 
-fn css_response(content: &str) -> Response<String> {
-    Response::builder()
-        .header("Content-Type", "text/css")
-        .body(content.to_string())
-        .expect("Invalid CSS response")
-}
-
 pub fn mk_static_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     Router::new()
         .route(
             "/site.css",
             get(|| async {
-                css_response(include_str!("../static/site.css"))
+                // App styles — cache for 5 minutes
+                static_response(include_str!("../static/site.css"), "text/css", 300)
             }),
         )
         .with_state(State(config))

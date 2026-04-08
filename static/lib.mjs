@@ -14,9 +14,9 @@
 
 
 function yaxisNameGenerator() {
-    var counter = 1;
+    let counter = 1;
     return function() {
-        var name = "yaxis";
+        let name = "yaxis";
         if (counter != 1) {
             name = "yaxis" + counter;
         }
@@ -187,7 +187,7 @@ class ElementConfig {
      */
     getUri() {
         //var uriParts = [this.#uri];
-        var uriParts = [];
+        const uriParts = [];
         if (this.end && this.duration && this.step_duration) {
             uriParts.push("end=" + this.end);
             uriParts.push("duration=" + this.duration);
@@ -227,7 +227,7 @@ class ElementConfig {
      * @param {Object<string, string>} labels
      */
     populateFilterData(labels) {
-        for (var key in labels) {
+        for (const key in labels) {
             const label = this.filterLabels[key];
             if (label) {
                 if (!label.includes(labels[key])) {
@@ -244,7 +244,7 @@ class ElementConfig {
       * @returns {HTMLDivElement}
       */
     buildSelectElement(key, me) {
-        var id = key + "-select" + Math.random();
+        const id = key + "-select" + Math.random();
         const element = document.createElement("div");
         const select = document.createElement("select");
         select.setAttribute("name", id);
@@ -255,7 +255,7 @@ class ElementConfig {
         const optValue = "Select All: " + key;
         optElement.innerText = optValue;
         select.appendChild(optElement);
-        for (var opt of this.filterLabels[key]) {
+        for (const opt of this.filterLabels[key]) {
             const optElement = document.createElement("option");
             optElement.setAttribute("value", opt);
             optElement.setAttribute("selected", "selected");
@@ -264,12 +264,12 @@ class ElementConfig {
             select.appendChild(optElement);
         }
 
-        var self = this;
+        const self = this;
         select.onchange = function(evt) {
             evt.stopPropagation();
-            var filteredValues = [];
+            const filteredValues = [];
             const selectElement = /** @type {HTMLSelectElement} */(evt.target);
-            var selectAll = /** @type {?HTMLOptionElement}*/(null);
+            let selectAll = /** @type {?HTMLOptionElement}*/(null);
             for (const optEl of selectElement.selectedOptions) {
                 if (optEl.value && optEl.value.startsWith("Select All: ")) {
                     selectAll = optEl;
@@ -302,8 +302,8 @@ class ElementConfig {
     // FIXME(jwall): We pass the element down but that couples a little too tightly. We should do this differently.
     buildFilterMenu(me) {
         // We need to maintain a stable order for these
-        var children = [];
-        for (var key of Object.keys(this.filterLabels).sort()) {
+        const children = [];
+        for (const key of Object.keys(this.filterLabels).sort()) {
             // If there are multiple items to filter by then show the selectElement.
             // otherwise there is no point.
             if (this.filterLabels[key].length > 1) {
@@ -394,7 +394,7 @@ export class GraphPlot extends HTMLElement {
      * @param {boolean=} updateOnly
      */
     reset(updateOnly) {
-        var self = this;
+        const self = this;
         self.#config.stopInterval()
         self.#config.fetchData().then((data) => {
             if (!updateOnly) {
@@ -419,7 +419,7 @@ export class GraphPlot extends HTMLElement {
       */
     getLabelsForQueryData(graph) {
         const data = graph.plots;
-        for (var subplot of data) {
+        for (const subplot of data) {
             if (subplot.Series) {
                 for (const triple of subplot.Series) {
                     const labels = triple[0];
@@ -440,14 +440,14 @@ export class GraphPlot extends HTMLElement {
      */
     buildSeriesPlot(triple) {
         const labels = /** @type {Map<String, String>} */(triple[0]);
-        for (var label in labels) {
-            var show = this.#config.filteredLabelSets[label];
+        for (const label in labels) {
+            const show = this.#config.filteredLabelSets[label];
             if (show && !show.includes(labels[label])) {
                 return null;
             }
         }
         const config = /** @type {PlotConfig} */(triple[1]);
-        var yaxis = config.yaxis || "y";
+        const yaxis = config.yaxis || "y";
         // https://plotly.com/javascript/reference/layout/yaxis/
         const series = triple[2];
         const trace = /** @type GraphTrace */({
@@ -463,7 +463,7 @@ export class GraphPlot extends HTMLElement {
         if (config.fill) {
             trace.fill = config.fill;
         }
-        var name = formatName(config, labels);
+        const name = formatName(config, labels);
         if (name) { trace.name = name; }
         for (const point of series) {
             trace.x.push(new Date(point.timestamp * 1000));
@@ -477,8 +477,8 @@ export class GraphPlot extends HTMLElement {
      */
     buildScalarPlot(triple) {
         const labels = /** @type {Map<String,String>} */(triple[0]);
-        for (var label in labels) {
-            var show = this.#config.filteredLabelSets[label];
+        for (const label in labels) {
+            const show = this.#config.filteredLabelSets[label];
             if (show && !show.includes(labels[label])) {
                 return null;
             }
@@ -491,7 +491,7 @@ export class GraphPlot extends HTMLElement {
             y: [],
             yhoverformat: config["d3_tick_format"],
         });
-        var name = formatName(config, labels);
+        const name = formatName(config, labels);
         if (name) { trace.name = name; }
         trace.y.push(series.value);
         trace.x.push(trace.name);
@@ -504,7 +504,7 @@ export class GraphPlot extends HTMLElement {
      * @param {?QueryPayload=} maybeGraph
      */
     async updateGraph(maybeGraph) {
-        var graph = maybeGraph;
+        let graph = maybeGraph;
         if (!graph) {
             graph = await this.#config.fetchData();
         }
@@ -522,9 +522,9 @@ export class GraphPlot extends HTMLElement {
      * @param {?QueryData=} graph
      */
     updateMetricsGraph(graph) {
-        var data = graph.plots;
-        var yaxes = graph.yaxes;
-        var layout = {
+        const data = graph.plots;
+        const yaxes = graph.yaxes;
+        const layout = {
             displayModeBar: false,
             responsive: true,
             plot_bgcolor: getCssVariableValue('--plot-bg').trim(),
@@ -548,16 +548,16 @@ export class GraphPlot extends HTMLElement {
         if (graph.legend_orientation) {
             layout.legend.orientation = graph.legend_orientation;
         }
-        var nextYaxis = yaxisNameGenerator();
+        let nextYaxis = yaxisNameGenerator();
         for (const yaxis of yaxes) {
             yaxis.tickformat = yaxis.tickformat || this.#config.d3TickFormat;
             yaxis.gridColor = getCssVariableValue("--plot-grid").trim();
             layout[nextYaxis()] = yaxis;
         }
-        var traces = /** @type {Array<PlotTrace>} */ ([]);
-        for (var subplot_idx in data) {
+        const traces = /** @type {Array<PlotTrace>} */ ([]);
+        for (const subplot_idx in data) {
             const subplot = data[subplot_idx];
-            var nextYaxis = yaxisNameGenerator();
+            let nextYaxis = yaxisNameGenerator();
             if (subplot.Series) {
                 // https://plotly.com/javascript/reference/scatter/
                 for (const triple of subplot.Series) {
@@ -628,12 +628,12 @@ export class SpanSelector extends HTMLElement {
 
     /** Updates all the graphs on the dashboard with the new timespan. */
     updateGraphs() {
-        for (var node of document.getElementsByTagName(GraphPlot.elementName)) {
+        for (const node of document.getElementsByTagName(GraphPlot.elementName)) {
             node.setAttribute('end', this.#endInput.value);
             node.setAttribute('duration', this.#durationInput.value);
             node.setAttribute('step-duration', this.#stepDurationInput.value);
         }
-        for (var node of document.getElementsByTagName(LogViewer.elementName)) {
+        for (const node of document.getElementsByTagName(LogViewer.elementName)) {
             node.setAttribute('end', this.#endInput.value);
             node.setAttribute('duration', this.#durationInput.value);
             node.setAttribute('step-duration', this.#stepDurationInput.value);
@@ -818,7 +818,7 @@ export class LogViewer extends HTMLElement {
         // Sort by timestamp in descending order
         newLines.sort((a, b) => b.timestamp - a.timestamp);
         
-        var hadContent = 0;
+        let hadContent = 0;
         if (this.#logLines) {
             hadContent = this.#logLines.children.length > 0;
         }
@@ -953,6 +953,7 @@ export class LogViewer extends HTMLElement {
 
         const lineElement = document.createElement('div');
         lineElement.className = 'log-line';
+        lineElement.dataset.lineId = line.id;
 
         // Main line container
         this.createLineElement(line, lineElement);
@@ -960,23 +961,15 @@ export class LogViewer extends HTMLElement {
         this.#logLines.appendChild(lineElement);
 
         // Limit the number of displayed lines to prevent memory issues
-        // TODO(zaphar): This should probably be set via a property.
         const maxLines = 1000;
         if (this.#logLines.children.length > maxLines) {
             const linesToRemove = this.#logLines.children.length - maxLines;
             for (let i = 0; i < linesToRemove; i++) {
-                this.#logLines.removeChild(this.#logLines.firstChild);
-            }
-            
-            // Clean up the displayed lines set to prevent memory leaks
-            if (this.#displayedLines.size > maxLines * 1.2) {
-                this.#displayedLines.clear();
-                // Re-add current visible lines
-                for (const child of this.#logLines.children) {
-                    const timestamp = child.querySelector('span').textContent;
-                    const content = child.querySelector('span:last-child').textContent;
-                    this.#displayedLines.add(`${new Date(timestamp).getTime()}-${content}`);
+                const removed = this.#logLines.firstChild;
+                if (removed && removed.dataset && removed.dataset.lineId) {
+                    this.#displayedLines.delete(removed.dataset.lineId);
                 }
+                this.#logLines.removeChild(removed);
             }
         }
     }

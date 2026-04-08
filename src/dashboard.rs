@@ -256,6 +256,17 @@ fn graph_span_to_tuple(span: &Option<GraphSpan>) -> Option<(DateTime<Utc>, Durat
     Some((end, duration, step_duration))
 }
 
+/// Resolves the effective time span using precedence: query params > item-level > dashboard-level.
+fn resolve_span(
+    query_span: &Option<GraphSpan>,
+    item_span: &Option<GraphSpan>,
+    dash_span: &Option<GraphSpan>,
+) -> Option<(DateTime<Utc>, Duration, Duration)> {
+    graph_span_to_tuple(query_span)
+        .or_else(|| graph_span_to_tuple(item_span))
+        .or_else(|| graph_span_to_tuple(dash_span))
+}
+
 impl Graph {
     pub fn get_query_connections<'conn, 'graph: 'conn>(
         &'graph self,
@@ -281,13 +292,7 @@ impl Graph {
                 debug!(?filters, "query connection with filters");
                 conn = conn.with_filters(filters);
             }
-            // Query params take precendence over all other settings. Then graph settings take
-            // precedences and finally the dashboard settings take precendence
-            if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
-                conn = conn.with_span(end, duration, step_duration);
-            } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
-                conn = conn.with_span(end, duration, step_duration);
-            } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+            if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, graph_span) {
                 conn = conn.with_span(end, duration, step_duration);
             }
             conns.push(conn);
@@ -308,13 +313,7 @@ impl LogStream {
             "Getting loki query connection for log streams",
         );
         let mut conn = LokiConn::new(&self.source, &self.query, self.query_type.clone());
-        // Query params take precendence over all other settings. Then graph settings take
-        // precedences and finally the dashboard settings take precendence
-        if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
-            conn = conn.with_span(end, duration, step_duration);
-        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
-            conn = conn.with_span(end, duration, step_duration);
-        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+        if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, graph_span) {
             conn = conn.with_span(end, duration, step_duration);
         }
         if let Some(limit) = self.limit {
@@ -334,13 +333,7 @@ impl LogStream {
             "Getting victorialogs query connection for log streams",
         );
         let mut conn = LogsqlConn::new(&self.source, &self.query, self.query_type.clone());
-        // Query params take precendence over all other settings. Then graph settings take
-        // precedences and finally the dashboard settings take precendence
-        if let Some((end, duration, step_duration)) = graph_span_to_tuple(query_span) {
-            conn = conn.with_span(end, duration, step_duration);
-        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(&self.span) {
-            conn = conn.with_span(end, duration, step_duration);
-        } else if let Some((end, duration, step_duration)) = graph_span_to_tuple(graph_span) {
+        if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, graph_span) {
             conn = conn.with_span(end, duration, step_duration);
         }
         if let Some(limit) = self.limit {

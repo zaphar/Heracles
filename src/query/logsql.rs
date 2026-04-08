@@ -115,6 +115,9 @@ pub struct LogsqlConn<'conn> {
 const QUERY_API_PATH: &'static str = "/select/logsql/query";
 
 impl<'conn> LogsqlConn<'conn> {
+    /// Creates a new VictoriaLogs connection. Note: `query_type` is accepted for API
+    /// consistency with other backends but is ignored — VictoriaLogs uses a single
+    /// endpoint for all query types.
     pub fn new<'a: 'conn>(url: &'a str, query: &'a str, _query_type: QueryType) -> Self {
         Self {
             url,
