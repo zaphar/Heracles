@@ -79,18 +79,25 @@ function ansiToHtml(line) {
 
 /**
  * Formats the name for the plot trace.
- * Uses a template string where {label_key} is replaced with the label value.
- * For example, name_format: "{instance} - {job}" with labels {instance: "node-01", job: "prometheus"}
- * produces "node-01 - prometheus".
+ * Supports two format syntaxes:
+ *   - Legacy template literal: "`${labels.instance}`" (from pre-eval removal configs)
+ *   - Simple braces: "{instance} - {job}"
  * @param {PlotConfig} config
  * @param {Map<string, string>} labels
  * @return string
  */
-function formatName(config, labels) {
+export function formatName(config, labels) {
     const formatter = config.name_format;
     if (formatter) {
-        return formatter.replace(/\{(\w+)\}/g, function(_match, key) {
-            return labels[key] !== undefined ? labels[key] : '{' + key + '}';
+        // Strip surrounding backticks from legacy template literal format
+        let fmt = formatter;
+        if (fmt.startsWith('`') && fmt.endsWith('`')) {
+            fmt = fmt.slice(1, -1);
+        }
+        // Replace ${labels.key} (legacy) and {key} (current) with label values
+        return fmt.replace(/\$\{labels\.(\w+)\}|\{(\w+)\}/g, function(_match, legacyKey, simpleKey) {
+            const key = legacyKey || simpleKey;
+            return labels[key] !== undefined ? labels[key] : _match;
         });
     }
     const names = [];

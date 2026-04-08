@@ -1,5 +1,5 @@
 // TODO(jwall): Figure out how to handle the missing browser apis in node contexts.
-import { GraphPlot, SpanSelector } from '../static/lib.mjs';
+import { GraphPlot, SpanSelector, formatName } from '../static/lib.mjs';
 
 function deepEqual(got, expected) {
       // Check if both are the same reference or both are null
@@ -52,6 +52,35 @@ export var tapSuite = [
             t.ok(deepEqual(plot.getFilterLabels(), {"foo": ["bar", "quux"]}), "list of two values after second label value");
             plot.populateFilterData({"foo": "bar"});
             t.ok(deepEqual(plot.getFilterLabels(), {"foo": ["bar", "quux"]}), "We don't double add the same value");
+        }
+    },
+    {
+        plan: 7,
+        name: "formatName tests",
+        test: function(t) {
+            const labels = {"instance": "node-01", "job": "prometheus"};
+
+            // New {key} syntax
+            t.is(formatName({name_format: "{instance}"}, labels),
+                "node-01", "simple brace format replaces label");
+            t.is(formatName({name_format: "{instance} - {job}"}, labels),
+                "node-01 - prometheus", "multiple brace replacements");
+
+            // Legacy `${labels.key}` syntax
+            t.is(formatName({name_format: "`${labels.instance}`"}, labels),
+                "node-01", "legacy template literal format with backticks");
+            t.is(formatName({name_format: "`${labels.instance} ${labels.job}`"}, labels),
+                "node-01 prometheus", "legacy format with multiple replacements");
+
+            // Unknown keys preserved
+            t.is(formatName({name_format: "{missing}"}, labels),
+                "{missing}", "unknown key preserved in brace format");
+            t.is(formatName({name_format: "`${labels.missing}`"}, labels),
+                "${labels.missing}", "unknown key preserved in legacy format");
+
+            // Fallback when no name_format
+            t.is(formatName({}, labels),
+                "node-01 prometheus", "fallback joins all label values");
         }
     }
 ];
