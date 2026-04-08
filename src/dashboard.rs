@@ -85,7 +85,7 @@ pub struct AxisDefinition {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct GraphSpan {
+pub struct SpanConfig {
     // serialized with https://datatracker.ietf.org/doc/html/rfc3339 and special handling for 'now'
     pub end: String,
     pub duration: String,
@@ -97,7 +97,7 @@ pub struct Dashboard {
     pub title: String,
     pub graphs: Option<Vec<Graph>>,
     pub logs: Option<Vec<LogStream>>,
-    pub span: Option<GraphSpan>,
+    pub span: Option<SpanConfig>,
 }
 
 #[derive(Deserialize)]
@@ -115,15 +115,13 @@ pub enum Orientation {
     Vertical,
 }
 
-// NOTE(zapher): These two structs look repetitive but we haven't hit the rule of three yet.
-// If we do then it might be time to restructure them a bit.
 #[derive(Deserialize)]
 pub struct Graph {
     pub title: String,
     pub legend_orientation: Option<Orientation>,
     pub yaxes: Vec<AxisDefinition>,
     pub plots: Vec<SubPlot>,
-    pub span: Option<GraphSpan>,
+    pub span: Option<SpanConfig>,
     pub query_type: QueryType,
     pub d3_tick_format: Option<String>,
 }
@@ -147,7 +145,7 @@ pub struct LogStream {
     pub title: String,
     pub source: String,
     pub query: String,
-    pub span: Option<GraphSpan>,
+    pub span: Option<SpanConfig>,
     pub limit: Option<usize>,
     pub query_type: QueryType,
     #[serde(default)]
@@ -157,7 +155,7 @@ pub struct LogStream {
 pub async fn prom_query_data<'a>(
     graph: &Graph,
     dash: &Dashboard,
-    query_span: Option<GraphSpan>,
+    query_span: Option<SpanConfig>,
     filters: &Option<HashMap<&'a str, &'a str>>,
 ) -> Result<Vec<MetricsQueryResult>> {
     let connections = graph.get_query_connections(&dash.span, &query_span, filters);
@@ -174,7 +172,7 @@ pub async fn prom_query_data<'a>(
 pub async fn loki_query_data(
     stream: &LogStream,
     dash: &Dashboard,
-    query_span: Option<GraphSpan>,
+    query_span: Option<SpanConfig>,
 ) -> Result<LogQueryResult> {
     let conn = stream.get_loki_query_connection(&dash.span, &query_span);
     let response = conn.get_results().await?;
@@ -188,7 +186,7 @@ pub async fn loki_query_data(
 pub async fn victorialogs_query_data(
     stream: &LogStream,
     dash: &Dashboard,
-    query_span: Option<GraphSpan>,
+    query_span: Option<SpanConfig>,
 ) -> Result<LogQueryResult> {
     let conn = stream.get_victorialogs_query_connection(&dash.span, &query_span);
     let results = conn.get_results().await?;
@@ -198,7 +196,7 @@ pub async fn victorialogs_query_data(
 pub async fn log_query_data(
     stream: &LogStream,
     dash: &Dashboard,
-    query_span: Option<GraphSpan>,
+    query_span: Option<SpanConfig>,
 ) -> Result<LogQueryResult> {
     debug!(?stream.log_backend, "Getting results for log_backend");
     match stream.log_backend {
@@ -226,7 +224,7 @@ fn duration_from_string(duration_string: &str) -> Option<Duration> {
     }
 }
 
-fn graph_span_to_tuple(span: &Option<GraphSpan>) -> Option<(DateTime<Utc>, Duration, Duration)> {
+fn parse_span(span: &Option<SpanConfig>) -> Option<(DateTime<Utc>, Duration, Duration)> {
     if span.is_none() {
         return None;
     }
@@ -258,20 +256,20 @@ fn graph_span_to_tuple(span: &Option<GraphSpan>) -> Option<(DateTime<Utc>, Durat
 
 /// Resolves the effective time span using precedence: query params > item-level > dashboard-level.
 fn resolve_span(
-    query_span: &Option<GraphSpan>,
-    item_span: &Option<GraphSpan>,
-    dash_span: &Option<GraphSpan>,
+    query_span: &Option<SpanConfig>,
+    item_span: &Option<SpanConfig>,
+    dash_span: &Option<SpanConfig>,
 ) -> Option<(DateTime<Utc>, Duration, Duration)> {
-    graph_span_to_tuple(query_span)
-        .or_else(|| graph_span_to_tuple(item_span))
-        .or_else(|| graph_span_to_tuple(dash_span))
+    parse_span(query_span)
+        .or_else(|| parse_span(item_span))
+        .or_else(|| parse_span(dash_span))
 }
 
 impl Graph {
     pub fn get_query_connections<'conn, 'graph: 'conn>(
         &'graph self,
-        graph_span: &'graph Option<GraphSpan>,
-        query_span: &'graph Option<GraphSpan>,
+        dash_span: &'graph Option<SpanConfig>,
+        query_span: &'graph Option<SpanConfig>,
         filters: &'graph Option<HashMap<&'graph str, &'graph str>>,
     ) -> Vec<PromQueryConn<'conn>> {
         let mut conns = Vec::new();
@@ -292,7 +290,7 @@ impl Graph {
                 debug!(?filters, "query connection with filters");
                 conn = conn.with_filters(filters);
             }
-            if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, graph_span) {
+            if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, dash_span) {
                 conn = conn.with_span(end, duration, step_duration);
             }
             conns.push(conn);
@@ -304,8 +302,8 @@ impl Graph {
 impl LogStream {
     pub fn get_loki_query_connection<'conn, 'stream: 'conn>(
         &'stream self,
-        graph_span: &'stream Option<GraphSpan>,
-        query_span: &'stream Option<GraphSpan>,
+        dash_span: &'stream Option<SpanConfig>,
+        query_span: &'stream Option<SpanConfig>,
     ) -> LokiConn<'conn> {
         debug!(
             query = self.query,
@@ -313,7 +311,7 @@ impl LogStream {
             "Getting loki query connection for log streams",
         );
         let mut conn = LokiConn::new(&self.source, &self.query, self.query_type.clone());
-        if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, graph_span) {
+        if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, dash_span) {
             conn = conn.with_span(end, duration, step_duration);
         }
         if let Some(limit) = self.limit {
@@ -324,8 +322,8 @@ impl LogStream {
 
     pub fn get_victorialogs_query_connection<'conn, 'stream: 'conn>(
         &'stream self,
-        graph_span: &'stream Option<GraphSpan>,
-        query_span: &'stream Option<GraphSpan>,
+        dash_span: &'stream Option<SpanConfig>,
+        query_span: &'stream Option<SpanConfig>,
     ) -> LogsqlConn<'conn> {
         debug!(
             query = self.query,
@@ -333,7 +331,7 @@ impl LogStream {
             "Getting victorialogs query connection for log streams",
         );
         let mut conn = LogsqlConn::new(&self.source, &self.query, self.query_type.clone());
-        if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, graph_span) {
+        if let Some((end, duration, step_duration)) = resolve_span(query_span, &self.span, dash_span) {
             conn = conn.with_span(end, duration, step_duration);
         }
         if let Some(limit) = self.limit {

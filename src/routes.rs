@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
 use crate::dashboard::{
-    log_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
+    log_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, SpanConfig, Orientation, LogStream,
 };
 use crate::query::{self, MetricsQueryResult, LogQueryResult};
 
@@ -63,7 +63,7 @@ pub async fn loki_query(
         .as_ref()
         .and_then(|logs| logs.get(loki_idx))
         .ok_or(StatusCode::NOT_FOUND)?;
-    let lines = log_query_data(log, dash, query_to_graph_span(&query))
+    let lines = log_query_data(log, dash, query_to_span_config(&query))
         .await
         .map_err(|e| {
             error!(err=?e, "Log query failed");
@@ -89,7 +89,7 @@ pub async fn graph_query(
         .and_then(|graphs| graphs.get(graph_idx))
         .ok_or(StatusCode::NOT_FOUND)?;
     let filters = query_to_filterset(&query);
-    let plots = prom_query_data(graph, dash, query_to_graph_span(&query), &filters)
+    let plots = prom_query_data(graph, dash, query_to_span_config(&query), &filters)
         .await
         .map_err(|e| {
             error!(err=?e, "Graph query failed");
@@ -119,13 +119,13 @@ fn query_to_filterset<'v, 'a: 'v>(query: &'a HashMap<String, String>) -> Option<
     }
 }
 
-fn query_to_graph_span<'a>(query: &'a HashMap<String, String>) -> Option<GraphSpan> {
+fn query_to_span_config<'a>(query: &'a HashMap<String, String>) -> Option<SpanConfig> {
     let query_span = {
         if query.contains_key("end")
             && query.contains_key("duration")
             && query.contains_key("step_duration")
         {
-            Some(GraphSpan {
+            Some(SpanConfig {
                 end: query["end"].clone(),
                 duration: query["duration"].clone(),
                 step_duration: query["step_duration"].clone(),
