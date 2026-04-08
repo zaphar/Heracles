@@ -6,7 +6,8 @@
       "Bash(find:*)",
       "Bash(nvim --server /tmp/nvim-mcp.%Users%zaphar%projects%personal%heracles.18253.sock --remote-send ':checktime<CR>')",
       "Skill(jj:commit)",
-      "Bash(jj status:*)"
+      "Bash(jj status:*)",
+      "Bash(cargo run:*)"
     ],
     "deny": []
   }

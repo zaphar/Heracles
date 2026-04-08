@@ -18,7 +18,7 @@ parse_duration = "2.1.1"
 prometheus-http-query = { version = "0.8.2", default-features = false, features = ["rustls-tls"] }
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
-serde_yaml = "0.9.31"
+serde_yml = "0.0.12"
 tokio = { version = "1.36.0", features = ["net", "rt", "rt-multi-thread"] }
 tower-http = { version = "0.5.1", features = ["trace"] }
 tracing = "0.1.40"

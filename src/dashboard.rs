@@ -18,7 +18,7 @@ use anyhow::Result;
 use chrono::prelude::*;
 use chrono::Duration;
 use serde::{Deserialize, Serialize};
-use serde_yaml;
+use serde_yml;
 use tracing::{debug, error};
 
 use crate::query::LogQueryResult;
@@ -345,5 +345,5 @@ impl LogStream {
 
 pub fn read_dashboard_list(path: &Path) -> anyhow::Result<Vec<Dashboard>> {
     let f = std::fs::File::open(path)?;
-    Ok(serde_yaml::from_reader(f)?)
+    Ok(serde_yml::from_reader(f)?)
 }
