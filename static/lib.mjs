@@ -31,8 +31,6 @@ function yaxisNameGenerator() {
  */
 function ansiToHtml(line) {
     const ansiToHtmlMap = {
-        // Map ANSI color codes to HTML color names or hex values
-        // We don't necessarily handle all the colors but this is enough to start.
         "30": "black",
         "31": "red",
         "32": "green",
@@ -44,41 +42,62 @@ function ansiToHtml(line) {
         "39": "initial"
     };
 
-    // NOTE(zaphar): Yes this is gross and I should really do a better parser but I'm lazy.
-    // Replace ANSI codes with HTML span elements styled with the corresponding color
-    return line.replace(/\x1b\[([0-9;]*)m/g, (_match, p1) => {
-        const parts = p1.split(';'); // ANSI codes can be compounded, e.g., "1;31" for bold red
+    let openSpans = 0;
+    let result = line.replace(/\x1b\[([0-9;]*)m/g, (_match, p1) => {
+        const parts = p1.split(';');
         let styles = '';
         for (let part of parts) {
             if (ansiToHtmlMap[part]) {
-                // If the code is a color, map it to a CSS color
                 styles += `color: ${ansiToHtmlMap[part]};`;
             }
-            // TODO(zaphar): Add more conditions here to handle other styles like bold or underline?
         }
-        return styles ? `<span style="${styles}">` : '</span>';
-    }) + '</span>';
+        if (styles) {
+            // Close any previously open span before opening a new one
+            let prefix = '';
+            if (openSpans > 0) {
+                prefix = '</span>';
+            } else {
+                openSpans++;
+            }
+            return prefix + `<span style="${styles}">`;
+        } else {
+            // Reset code — close the open span
+            if (openSpans > 0) {
+                openSpans--;
+                return '</span>';
+            }
+            return '';
+        }
+    });
+    // Close any remaining open spans
+    while (openSpans > 0) {
+        result += '</span>';
+        openSpans--;
+    }
+    return result;
 }
 
-/** 
+/**
  * Formats the name for the plot trace.
+ * Uses a template string where {label_key} is replaced with the label value.
+ * For example, name_format: "{instance} - {job}" with labels {instance: "node-01", job: "prometheus"}
+ * produces "node-01 - prometheus".
  * @param {PlotConfig} config
  * @param {Map<string, string>} labels
  * @return string
  */
 function formatName(config, labels) {
-    var name = "";
-    const formatter = config.name_format
+    const formatter = config.name_format;
     if (formatter) {
-        name = eval(formatter);
-    } else {
-        var names = [];
-        for (const value of labels) {
-            names.push(value);
-        }
-        name = names.join(" ");
+        return formatter.replace(/\{(\w+)\}/g, function(_match, key) {
+            return labels[key] !== undefined ? labels[key] : '{' + key + '}';
+        });
     }
-    return name;
+    const names = [];
+    for (const value of Object.values(labels)) {
+        names.push(value);
+    }
+    return names.join(" ");
 }
 
 /**

@@ -75,7 +75,7 @@ impl<'conn> PromQueryConn<'conn> {
     }
 
     fn get_query(&self) -> String {
-        let first = true;
+        let mut first = true;
         let mut filter_string = String::new();
         debug!(filters=?self.filters, orig=?self.query, "Filters from request");
         if let Some(filters) = self.filters {
@@ -83,10 +83,11 @@ impl<'conn> PromQueryConn<'conn> {
                 if !first {
                     filter_string.push_str(",");
                 }
+                first = false;
                 filter_string.push_str(*k);
                 filter_string.push_str("=~");
                 filter_string.push('"');
-                filter_string.push_str(*v);
+                filter_string.push_str(&v.replace('\\', "\\\\").replace('"', "\\\""));
                 filter_string.push('"');
             }
         }

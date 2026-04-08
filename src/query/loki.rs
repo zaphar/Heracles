@@ -68,13 +68,18 @@ pub fn loki_to_sample(data: LokiData) -> LogQueryResult {
             let mut values = Vec::with_capacity(data.result.len());
             for result in data.result {
                 if let Some(value) = result.value {
-                    values.push((
-                        result.labels,
-                        LogLine {
-                            timestamp: value.0.parse::<f64>().expect("Invalid f64 type"),
-                            line: value.1,
-                        },
-                    ));
+                    match value.0.parse::<f64>() {
+                        Ok(timestamp) => values.push((
+                            result.labels,
+                            LogLine {
+                                timestamp,
+                                line: value.1,
+                            },
+                        )),
+                        Err(e) => {
+                            error!(err=?e, raw=?value.0, "Failed to parse Loki timestamp as f64, skipping result");
+                        }
+                    }
                 } else {
                     error!(
                         ?result,
@@ -95,9 +100,17 @@ pub fn loki_to_sample(data: LokiData) -> LogQueryResult {
                         result.labels,
                         value
                             .into_iter()
-                            .map(|(timestamp, line)| LogLine {
-                                timestamp: multiple * timestamp.parse::<f64>().expect("Invalid f64 type"),
-                                line,
+                            .filter_map(|(timestamp, line)| {
+                                match timestamp.parse::<f64>() {
+                                    Ok(ts) => Some(LogLine {
+                                        timestamp: multiple * ts,
+                                        line,
+                                    }),
+                                    Err(e) => {
+                                        error!(err=?e, raw=?timestamp, "Failed to parse Loki timestamp as f64, skipping line");
+                                        None
+                                    }
+                                }
                             })
                             .collect(),
                     ));

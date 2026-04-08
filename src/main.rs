@@ -93,10 +93,10 @@ async fn main() -> anyhow::Result<()> {
         if !args.offline {
             for dash in config.iter() {
                 validate(&dash).await?;
-                info!("All Queries successfully run against source");
-                return Ok(());
             }
+            info!("All Queries successfully run against source");
         }
+        return Ok(());
     }
     let router = Router::new()
         // JSON api endpoints

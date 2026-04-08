@@ -15,16 +15,15 @@ use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::{Path, Query, State},
+    http::StatusCode,
     response::Response,
     routing::get,
     Json, Router,
 };
 
-// TODO(zaphar): Handle query errors with a reasonable response.
-// https://maud.lambda.xyz/getting-started.html
 use maud::{html, Markup};
 use serde::{Deserialize, Serialize};
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::dashboard::{
     log_query_data, prom_query_data, AxisDefinition, Dashboard, Graph, GraphSpan, Orientation, LogStream,
@@ -51,53 +50,56 @@ pub struct LogsPayload {
     pub lines: LogQueryResult,
 }
 
-// TODO(jwall): Should this be a completely different payload?
 pub async fn loki_query(
     State(config): Config,
     Path((dash_idx, loki_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
-) -> Json<QueryPayload> {
+) -> Result<Json<QueryPayload>, StatusCode> {
     let dash = config
         .get(dash_idx)
-        .expect(&format!("No such dashboard index {}", dash_idx));
+        .ok_or(StatusCode::NOT_FOUND)?;
     let log = dash
         .logs
         .as_ref()
-        .expect("No logs in this dashboard")
-        .get(loki_idx)
-        .expect(&format!("No such log query {}", loki_idx));
+        .and_then(|logs| logs.get(loki_idx))
+        .ok_or(StatusCode::NOT_FOUND)?;
     let lines = log_query_data(log, dash, query_to_graph_span(&query))
         .await
-        .expect("Unable to get log query results");
-    Json(QueryPayload::Logs(LogsPayload {
+        .map_err(|e| {
+            error!(err=?e, "Log query failed");
+            StatusCode::BAD_GATEWAY
+        })?;
+    Ok(Json(QueryPayload::Logs(LogsPayload {
         lines,
-    }))
+    })))
 }
 
 pub async fn graph_query(
     State(config): Config,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
     Query(query): Query<HashMap<String, String>>,
-) -> Json<QueryPayload> {
+) -> Result<Json<QueryPayload>, StatusCode> {
     debug!("Getting data for query");
     let dash = config
         .get(dash_idx)
-        .expect(&format!("No such dashboard index {}", dash_idx));
+        .ok_or(StatusCode::NOT_FOUND)?;
     let graph = dash
         .graphs
         .as_ref()
-        .expect("No graphs in this dashboard")
-        .get(graph_idx)
-        .expect(&format!("No such graph in dasboard {}", dash_idx));
+        .and_then(|graphs| graphs.get(graph_idx))
+        .ok_or(StatusCode::NOT_FOUND)?;
     let filters = query_to_filterset(&query);
     let plots = prom_query_data(graph, dash, query_to_graph_span(&query), &filters)
         .await
-        .expect("Unable to get query results");
-    Json(QueryPayload::Metrics(GraphPayload {
+        .map_err(|e| {
+            error!(err=?e, "Graph query failed");
+            StatusCode::BAD_GATEWAY
+        })?;
+    Ok(Json(QueryPayload::Metrics(GraphPayload {
         legend_orientation: graph.legend_orientation.clone(),
         yaxes: graph.yaxes.clone(),
         plots,
-    }))
+    })))
 }
 
 fn query_to_filterset<'v, 'a: 'v>(query: &'a HashMap<String, String>) -> Option<HashMap<&'v str, &'v str>> {
@@ -190,42 +192,35 @@ pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Mark
 pub async fn graph_ui(
     State(config): State<Config>,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
-) -> Markup {
+) -> Result<Markup, StatusCode> {
     let graph = config
         .get(dash_idx)
-        .expect(&format!("No such dashboard {}", dash_idx))
-        .graphs
-        .as_ref()
-        .expect("No graphs in this dashboard")
-        .get(graph_idx)
-        .expect("No such graph");
-    graph_component(dash_idx, graph_idx, graph)
+        .and_then(|d| d.graphs.as_ref())
+        .and_then(|graphs| graphs.get(graph_idx))
+        .ok_or(StatusCode::NOT_FOUND)?;
+    Ok(graph_component(dash_idx, graph_idx, graph))
 }
 
 pub async fn log_ui(
     State(config): State<Config>,
     Path((dash_idx, log_idx)): Path<(usize, usize)>,
-) -> Markup {
+) -> Result<Markup, StatusCode> {
     let log = config
         .get(dash_idx)
-        .expect(&format!("No such dashboard {}", dash_idx))
-        .logs
-        .as_ref()
-        .expect("No graphs in this dashboard")
-        .get(log_idx)
-        .expect("No such graph");
-    log_component(dash_idx, log_idx, log)
+        .and_then(|d| d.logs.as_ref())
+        .and_then(|logs| logs.get(log_idx))
+        .ok_or(StatusCode::NOT_FOUND)?;
+    Ok(log_component(dash_idx, log_idx, log))
 }
 
-pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) -> Markup {
-    // TODO(zaphar): Should do better http error reporting here.
+pub async fn dash_ui(State(config): State<Config>, Path(dash_idx): Path<usize>) -> Result<Markup, StatusCode> {
     dash_elements(config, dash_idx)
 }
 
-fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> maud::PreEscaped<String> {
+fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> Result<maud::PreEscaped<String>, StatusCode> {
     let dash = config
         .get(dash_idx)
-        .expect(&format!("No such dashboard {}", dash_idx));
+        .ok_or(StatusCode::NOT_FOUND)?;
     let graph_components = if let Some(graphs) = dash
         .graphs
         .as_ref() {
@@ -250,14 +245,14 @@ fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> maud::P
     } else {
         None
     };
-    html!(
+    Ok(html!(
         div class="dashboard-header" {
             h1 class="dashboard-title" { (dash.title) }
             span-selector {}
         }
         @if graph_components.is_some() { (graph_components.unwrap()) }
         @if log_components.is_some() { (log_components.unwrap()) }
-    )
+    ))
 }
 
 pub fn mk_ui_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
@@ -283,35 +278,37 @@ fn graph_lib_prelude() -> Markup {
 pub async fn graph_embed(
     State(config): State<Config>,
     Path((dash_idx, graph_idx)): Path<(usize, usize)>,
-) -> Markup {
-    html! {
+) -> Result<Markup, StatusCode> {
+    let content = graph_ui(State(config.clone()), Path((dash_idx, graph_idx))).await?;
+    Ok(html! {
         html {
             head {
                 title { ("Heracles - Prometheus Unshackled") }
             }
             body {
                 (graph_lib_prelude())
-                (graph_ui(State(config.clone()), Path((dash_idx, graph_idx))).await)
+                (content)
             }
         }
-    }
+    })
 }
 
 pub async fn log_embed(
     State(config): State<Config>,
     Path((dash_idx, log_idx)): Path<(usize, usize)>,
-) -> Markup {
-    html! {
+) -> Result<Markup, StatusCode> {
+    let content = log_ui(State(config.clone()), Path((dash_idx, log_idx))).await?;
+    Ok(html! {
         html {
             head {
                 title { ("Heracles - Prometheus Unshackled") }
             }
             body {
                 (graph_lib_prelude())
-                (log_ui(State(config.clone()), Path((dash_idx, log_idx))).await)
+                (content)
             }
         }
-    }
+    })
 }
 
 async fn index_html(config: Config, dash_idx: Option<usize>) -> Markup {
@@ -358,7 +355,11 @@ fn render_index(config: State<Arc<Vec<Dashboard>>>, dash_idx: Option<usize>) -> 
             }
             div class="main-content" id="dashboard" {
                 @if let Some(dash_idx) = dash_idx {
-                    (dash_elements(config, dash_idx))
+                    @if let Ok(content) = dash_elements(config, dash_idx) {
+                        (content)
+                    } @else {
+                        p { "Dashboard not found." }
+                    }
                 }
             }
         }
@@ -397,12 +398,19 @@ pub fn mk_js_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
         .with_state(State(config))
 }
 
+fn css_response(content: &str) -> Response<String> {
+    Response::builder()
+        .header("Content-Type", "text/css")
+        .body(content.to_string())
+        .expect("Invalid CSS response")
+}
+
 pub fn mk_static_routes(config: Arc<Vec<Dashboard>>) -> Router<Config> {
     Router::new()
         .route(
             "/site.css",
             get(|| async {
-                return include_str!("../static/site.css");
+                css_response(include_str!("../static/site.css"))
             }),
         )
         .with_state(State(config))

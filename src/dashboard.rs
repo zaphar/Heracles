@@ -181,8 +181,7 @@ pub async fn loki_query_data(
     if response.status == "success" {
         Ok(loki_to_sample(response.data))
     } else {
-        // TODO(jwall): Better error handling than this
-        panic!("Loki query status: {}", response.status)
+        anyhow::bail!("Loki query returned status: {}", response.status)
     }
 }
 

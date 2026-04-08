@@ -4,7 +4,8 @@
       "Bash(cargo check:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(nvim --server /tmp/nvim-mcp.%Users%zaphar%projects%personal%heracles.18253.sock --remote-send ':checktime<CR>')"
+      "Bash(nvim --server /tmp/nvim-mcp.%Users%zaphar%projects%personal%heracles.18253.sock --remote-send ':checktime<CR>')",
+      "Skill(jj:commit)"
     ],
     "deny": []
   }
