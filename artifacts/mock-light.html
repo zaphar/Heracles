@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heracles - Visual Design Mock (Light Mode)</title>
+<style>
+/* ============================================
+   HERACLES VISUAL REFRESH - LIGHT MODE MOCK
+   ============================================ */
+
+:root {
+    /* Color System - Light Mode */
+    --bg-primary:         #f8f9fb;
+    --bg-secondary:       #ffffff;
+    --bg-tertiary:        #f0f2f5;
+    --bg-sidebar:         #f0f2f5;
+    --bg-input:           #ffffff;
+
+    --text-primary:       #1a2028;
+    --text-secondary:     #5c6670;
+    --text-muted:         #8b95a3;
+    --text-inverse:       #ffffff;
+
+    --border-default:     #e2e5ea;
+    --border-strong:      #cbd0d8;
+
+    --accent-primary:     #2563eb;
+    --accent-hover:       #1d4ed8;
+    --accent-muted:       rgba(37, 99, 235, 0.08);
+
+    --status-healthy:     #16a34a;
+    --status-warning:     #ca8a04;
+    --status-critical:    #dc2626;
+    --status-info:        #2563eb;
+
+    --plot-bg:            #ffffff;
+    --plot-grid:          #f0f2f5;
+    --plot-axis:          #8b95a3;
+
+    --scrollbar-thumb:    #cbd0d8;
+    --scrollbar-track:    #f0f2f5;
+
+    /* Typography */
+    --font-sans:   -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono:   "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+
+    /* Spacing */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-6: 24px;
+    --sp-8: 32px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+/* ---- Scrollbars ---- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* ---- Sidebar ---- */
+.sidebar {
+    width: 220px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-default);
+    overflow-y: auto;
+    z-index: 200;
+}
+
+.sidebar-header {
+    padding: 20px 16px 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sidebar-nav {
+    list-style: none;
+}
+
+.sidebar-nav-item {
+    display: block;
+    padding: 8px 16px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar-nav-item:hover {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+.sidebar-nav-item.active {
+    color: var(--accent-primary);
+    background: var(--accent-muted);
+    border-left-color: var(--accent-primary);
+}
+
+/* ---- Main Content ---- */
+.main-content {
+    margin-left: 220px;
+    padding: var(--sp-6) var(--sp-8);
+    min-height: 100vh;
+}
+
+/* ---- Dashboard Header (sticky) ---- */
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-3) 0 var(--sp-4);
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+    z-index: 100;
+    border-bottom: 1px solid var(--border-default);
+    margin-bottom: var(--sp-4);
+}
+
+.dashboard-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ---- Span Selector ---- */
+.span-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.span-selector label {
+    color: var(--text-secondary);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.span-selector input {
+    background: var(--bg-input);
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    padding: 6px 8px;
+    width: 120px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.span-selector input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+.span-selector button {
+    background: var(--accent-primary);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.span-selector button:hover {
+    background: var(--accent-hover);
+}
+
+.span-selector button:active {
+    transform: translateY(1px);
+}
+
+/* ---- Graph Cards ---- */
+.graph-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: var(--sp-4);
+}
+
+.graph-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.graph-card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.graph-card-embed {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.graph-card-embed:hover {
+    color: var(--accent-primary);
+}
+
+.graph-card-body {
+    padding: var(--sp-2);
+}
+
+/* Loading state */
+.graph-card-body.loading::before {
+    content: '';
+    display: block;
+    height: 2px;
+    background: var(--accent-primary);
+    animation: pulse-loading 1.5s ease-in-out infinite;
+    border-radius: 1px;
+    margin-bottom: var(--sp-2);
+}
+
+@keyframes pulse-loading {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.7; }
+}
+
+/* ---- Mock Chart Area ---- */
+.mock-chart {
+    background: var(--plot-bg);
+    border-radius: 4px;
+    height: 280px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-default);
+}
+
+.mock-chart::before {
+    content: '';
+    position: absolute;
+    inset: 40px 16px 40px 48px;
+    background-image:
+        linear-gradient(to right, var(--plot-grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--plot-grid) 1px, transparent 1px);
+    background-size: calc(100% / 6) calc(100% / 4);
+}
+
+.mock-y-axis {
+    position: absolute;
+    left: 6px;
+    top: 40px;
+    bottom: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--plot-axis);
+}
+
+.mock-x-axis {
+    position: absolute;
+    left: 48px;
+    right: 16px;
+    bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--plot-axis);
+}
+
+.mock-chart svg {
+    position: absolute;
+    top: 40px;
+    left: 48px;
+    right: 16px;
+    bottom: 40px;
+    width: calc(100% - 64px);
+    height: calc(100% - 80px);
+}
+
+.mock-legend {
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    display: flex;
+    gap: 12px;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.mock-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mock-legend-dot {
+    width: 8px;
+    height: 3px;
+    border-radius: 1px;
+}
+
+/* ---- Scalar Card ---- */
+.scalar-values {
+    display: flex;
+    gap: var(--sp-4);
+    padding: var(--sp-4);
+}
+
+.scalar-item {
+    flex: 1;
+    text-align: center;
+    padding: var(--sp-4);
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+.scalar-value {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.scalar-label {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    margin-top: var(--sp-1);
+}
+
+/* ---- Log Viewer ---- */
+.log-container {
+    height: 300px;
+    width: 100%;
+    overflow: auto;
+    background: var(--plot-bg);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    position: relative;
+    border-top: 1px solid var(--border-default);
+}
+
+.log-lines {
+    padding: var(--sp-1) 0;
+    color: var(--text-primary);
+    min-width: 100%;
+}
+
+.log-line {
+    padding: 2px 12px;
+    border-left: 2px solid transparent;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.1s ease;
+    display: flex;
+    align-items: flex-start;
+}
+
+.log-line:hover {
+    border-left-color: var(--accent-primary);
+    background: var(--accent-muted);
+}
+
+.log-line.expanded {
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.log-timestamp {
+    color: var(--text-muted);
+    margin-right: 12px;
+    font-size: 0.6875rem;
+    flex-shrink: 0;
+    user-select: all;
+}
+
+.log-content {
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.log-labels {
+    display: none;
+    margin: 4px 0 4px 24px;
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    border-left: 2px solid var(--accent-primary);
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+}
+
+.log-labels.visible {
+    display: block;
+}
+
+/* ---- Filter Menu ---- */
+.filter-menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-4);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.filter-menu select {
+    background: var(--bg-input);
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    padding: 4px 6px;
+}
+
+.filter-menu select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+/* ---- Log Table (Fields mode) ---- */
+.log-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--plot-bg);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+}
+
+.log-table th {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-strong);
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.log-table td {
+    padding: 6px 12px;
+    border-right: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--border-default);
+    vertical-align: top;
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-table td:last-child { border-right: none; }
+
+.log-table tr:hover td {
+    background: var(--accent-muted);
+}
+
+/* ---- Focus ---- */
+:focus-visible {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+/* ---- ANSI color classes ---- */
+.ansi-green { color: var(--status-healthy); }
+.ansi-yellow { color: var(--status-warning); }
+.ansi-red { color: var(--status-critical); }
+.ansi-blue { color: var(--status-info); }
+.ansi-cyan { color: #0891b2; }
+.ansi-magenta { color: #9333ea; }
+</style>
+</head>
+<body>
+
+<!-- ======== SIDEBAR ======== -->
+<nav class="sidebar">
+    <div class="sidebar-header">Heracles</div>
+    <ul class="sidebar-nav">
+        <li class="sidebar-nav-item active">Infrastructure</li>
+        <li class="sidebar-nav-item">Kubernetes Pods</li>
+        <li class="sidebar-nav-item">Network Traffic</li>
+        <li class="sidebar-nav-item">Node Exporter</li>
+        <li class="sidebar-nav-item">PostgreSQL</li>
+        <li class="sidebar-nav-item">Redis</li>
+        <li class="sidebar-nav-item">Nginx Logs</li>
+        <li class="sidebar-nav-item">Application Logs</li>
+    </ul>
+</nav>
+
+<!-- ======== MAIN CONTENT ======== -->
+<div class="main-content">
+
+    <!-- Dashboard Header (sticky) -->
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">Infrastructure</h1>
+        <div class="span-selector">
+            <label>End</label>
+            <input type="text" value="now" />
+            <label>Duration</label>
+            <input type="text" value="1h" />
+            <label>Step</label>
+            <input type="text" value="15s" />
+            <button>Update</button>
+        </div>
+    </div>
+
+    <!-- ---- Graph Card: CPU Usage ---- -->
+    <div class="graph-card">
+        <div class="graph-card-header">
+            <h2 class="graph-card-title">CPU Usage by Host</h2>
+            <a href="#" class="graph-card-embed">embed</a>
+        </div>
+        <div class="filter-menu">
+            <select multiple size="2">
+                <option>Select All: instance</option>
+                <option selected>node-01</option>
+                <option selected>node-02</option>
+                <option selected>node-03</option>
+            </select>
+        </div>
+        <div class="graph-card-body">
+            <div class="mock-chart">
+                <div class="mock-legend">
+                    <span class="mock-legend-item"><span class="mock-legend-dot" style="background:#2563eb"></span>node-01</span>
+                    <span class="mock-legend-item"><span class="mock-legend-dot" style="background:#16a34a"></span>node-02</span>
+                    <span class="mock-legend-item"><span class="mock-legend-dot" style="background:#ca8a04"></span>node-03</span>
+                </div>
+                <div class="mock-y-axis">
+                    <span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span>
+                </div>
+                <div class="mock-x-axis">
+                    <span>14:00</span><span>14:10</span><span>14:20</span><span>14:30</span><span>14:40</span><span>14:50</span><span>15:00</span>
+                </div>
+                <svg viewBox="0 0 600 200" preserveAspectRatio="none">
+                    <polyline fill="none" stroke="#2563eb" stroke-width="2"
+                        points="0,120 50,110 100,100 150,115 200,90 250,95 300,80 350,85 400,75 450,90 500,85 550,80 600,70" />
+                    <polyline fill="none" stroke="#16a34a" stroke-width="2"
+                        points="0,150 50,155 100,140 150,145 200,135 250,150 300,145 350,130 400,140 450,135 500,145 550,140 600,130" />
+                    <polyline fill="none" stroke="#ca8a04" stroke-width="2"
+                        points="0,170 50,175 100,165 150,180 200,160 250,170 300,155 350,165 400,170 450,160 500,175 550,155 600,160" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- ---- Graph Card: Memory Usage ---- -->
+    <div class="graph-card">
+        <div class="graph-card-header">
+            <h2 class="graph-card-title">Memory Usage</h2>
+            <a href="#" class="graph-card-embed">embed</a>
+        </div>
+        <div class="graph-card-body">
+            <div class="mock-chart">
+                <div class="mock-legend">
+                    <span class="mock-legend-item"><span class="mock-legend-dot" style="background:#2563eb"></span>used</span>
+                    <span class="mock-legend-item"><span class="mock-legend-dot" style="background:#9333ea"></span>cached</span>
+                    <span class="mock-legend-item"><span class="mock-legend-dot" style="background:#0891b2"></span>buffers</span>
+                </div>
+                <div class="mock-y-axis">
+                    <span>16G</span><span>12G</span><span>8G</span><span>4G</span><span>0</span>
+                </div>
+                <div class="mock-x-axis">
+                    <span>14:00</span><span>14:10</span><span>14:20</span><span>14:30</span><span>14:40</span><span>14:50</span><span>15:00</span>
+                </div>
+                <svg viewBox="0 0 600 200" preserveAspectRatio="none">
+                    <polyline fill="none" stroke="#2563eb" stroke-width="2"
+                        points="0,70 50,68 100,65 150,62 200,60 250,58 300,55 350,58 400,60 450,55 500,52 550,50 600,48" />
+                    <polyline fill="none" stroke="#9333ea" stroke-width="2"
+                        points="0,140 50,142 100,138 150,140 200,135 250,138 300,140 350,135 400,130 450,135 500,138 550,132 600,130" />
+                    <polyline fill="none" stroke="#0891b2" stroke-width="2"
+                        points="0,180 50,178 100,182 150,180 200,178 250,180 300,182 350,178 400,180 450,178 500,180 550,178 600,176" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- ---- Scalar Card ---- -->
+    <div class="graph-card">
+        <div class="graph-card-header">
+            <h2 class="graph-card-title">Current Status</h2>
+            <a href="#" class="graph-card-embed">embed</a>
+        </div>
+        <div class="graph-card-body">
+            <div class="scalar-values">
+                <div class="scalar-item">
+                    <div class="scalar-value" style="color: var(--status-healthy)">99.7%</div>
+                    <div class="scalar-label">Uptime</div>
+                </div>
+                <div class="scalar-item">
+                    <div class="scalar-value" style="color: var(--text-primary)">342</div>
+                    <div class="scalar-label">Active Connections</div>
+                </div>
+                <div class="scalar-item">
+                    <div class="scalar-value" style="color: var(--status-warning)">78%</div>
+                    <div class="scalar-label">Disk Usage</div>
+                </div>
+                <div class="scalar-item">
+                    <div class="scalar-value" style="color: var(--status-healthy)">12ms</div>
+                    <div class="scalar-label">Avg Latency</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ---- Log Viewer Card ---- -->
+    <div class="graph-card">
+        <div class="graph-card-header">
+            <h2 class="graph-card-title">System Logs</h2>
+            <a href="#" class="graph-card-embed">embed</a>
+        </div>
+        <div class="filter-menu">
+            <select multiple size="2">
+                <option>Select All: job</option>
+                <option selected>kubelet</option>
+                <option selected>containerd</option>
+                <option selected>systemd</option>
+            </select>
+            <select multiple size="2">
+                <option>Select All: level</option>
+                <option selected>info</option>
+                <option selected>warn</option>
+                <option selected>error</option>
+            </select>
+        </div>
+        <div class="graph-card-body" style="padding: 0;">
+            <div class="log-container">
+                <div class="log-lines">
+                    <div class="log-line">
+                        <span class="log-timestamp">2026-04-08T14:59:42.331Z</span>
+                        <span class="log-content">level=<span class="ansi-red">error</span> msg="Failed to pull image: context deadline exceeded" container=api-server pod=api-server-7b4d9f</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">2026-04-08T14:59:41.208Z</span>
+                        <span class="log-content">level=<span class="ansi-yellow">warn</span> msg="High memory pressure detected on node-03, eviction threshold approaching" node=node-03</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">2026-04-08T14:59:40.877Z</span>
+                        <span class="log-content">level=info msg="Successfully synced pod" pod=redis-primary-0 namespace=data</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">2026-04-08T14:59:39.445Z</span>
+                        <span class="log-content">level=info msg="Container started" container=nginx pod=ingress-nginx-controller-5f8b7</span>
+                    </div>
+                    <div class="log-line expanded">
+                        <span class="log-timestamp">2026-04-08T14:59:38.112Z</span>
+                        <span class="log-content">level=<span class="ansi-yellow">warn</span> msg="Connection pool exhausted, waiting for available connection" service=postgres-proxy</span>
+                    </div>
+                    <div class="log-labels visible" style="margin-left: 180px;">job=containerd instance=node-02:9100 namespace=data stream=stderr</div>
+                    <div class="log-line">
+                        <span class="log-timestamp">2026-04-08T14:59:37.990Z</span>
+                        <span class="log-content">level=info msg="Health check passed" service=api-gateway endpoint=/healthz latency=2ms</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">2026-04-08T14:59:36.654Z</span>
+                        <span class="log-content">level=info msg="Certificate renewal scheduled" domain=*.homelab.local expires_in=29d</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">2026-04-08T14:59:35.221Z</span>
+                        <span class="log-content">level=info msg="Garbage collection completed" freed=128MB duration=340ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ---- Log Table Card ---- -->
+    <div class="graph-card">
+        <div class="graph-card-header">
+            <h2 class="graph-card-title">VictoriaLogs Query Results</h2>
+            <a href="#" class="graph-card-embed">embed</a>
+        </div>
+        <div class="graph-card-body" style="padding: 0;">
+            <div class="log-container" style="height: 220px;">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>_time</th>
+                            <th>_stream</th>
+                            <th>_msg</th>
+                            <th>status</th>
+                            <th>duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2026-04-08T14:59:40Z</td>
+                            <td>{job="nginx"}</td>
+                            <td>GET /api/v1/query_range 200</td>
+                            <td style="color: var(--status-healthy)">200</td>
+                            <td>45ms</td>
+                        </tr>
+                        <tr>
+                            <td>2026-04-08T14:59:38Z</td>
+                            <td>{job="nginx"}</td>
+                            <td>POST /api/v1/write 204</td>
+                            <td style="color: var(--status-healthy)">204</td>
+                            <td>12ms</td>
+                        </tr>
+                        <tr>
+                            <td>2026-04-08T14:59:35Z</td>
+                            <td>{job="nginx"}</td>
+                            <td>GET /api/v1/labels 500</td>
+                            <td style="color: var(--status-critical)">500</td>
+                            <td>2340ms</td>
+                        </tr>
+                        <tr>
+                            <td>2026-04-08T14:59:33Z</td>
+                            <td>{job="nginx"}</td>
+                            <td>GET /api/v1/query 200</td>
+                            <td style="color: var(--status-healthy)">200</td>
+                            <td>89ms</td>
+                        </tr>
+                        <tr>
+                            <td>2026-04-08T14:59:30Z</td>
+                            <td>{job="nginx"}</td>
+                            <td>GET /api/v1/series 200</td>
+                            <td style="color: var(--status-healthy)">200</td>
+                            <td>156ms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

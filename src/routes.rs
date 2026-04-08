@@ -153,9 +153,14 @@ pub fn log_component(dash_idx: usize, log_idx: usize, log: &LogStream) -> Markup
     let log_data_uri = format!("/api/dash/{}/log/{}", dash_idx, log_idx);
     let log_embed_uri = format!("/embed/dash/{}/log/{}", dash_idx, log_idx);
     html! {
-        div {
-            h2 { (log.title) " - " a href=(log_embed_uri) { "embed url" } }
-            log-viewer uri=(log_data_uri) id=(log_id) { }
+        div class="graph-card" {
+            div class="graph-card-header" {
+                h2 class="graph-card-title" { (log.title) }
+                a href=(log_embed_uri) class="graph-card-embed" { "embed" }
+            }
+            div class="graph-card-body" style="padding: 0;" {
+                log-viewer uri=(log_data_uri) id=(log_id) { }
+            }
         }
     }
 }
@@ -166,12 +171,17 @@ pub fn graph_component(dash_idx: usize, graph_idx: usize, graph: &Graph) -> Mark
     let graph_embed_uri = format!("/embed/dash/{}/graph/{}", dash_idx, graph_idx);
     let allow_filters = graph.plots.iter().find(|p| p.query.contains(query::FILTER_PLACEHOLDER)).is_some();
     html!(
-        div {
-            h2 { (graph.title) " - " a href=(graph_embed_uri) { "embed url" } }
-            @if graph.d3_tick_format.is_some() {
-                graph-plot allow-uri-filters=(allow_filters) uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
-            } @else {
-                graph-plot allow-uri-filters=(allow_filters) uri=(graph_data_uri) id=(graph_id) { }
+        div class="graph-card" {
+            div class="graph-card-header" {
+                h2 class="graph-card-title" { (graph.title) }
+                a href=(graph_embed_uri) class="graph-card-embed" { "embed" }
+            }
+            div class="graph-card-body" {
+                @if graph.d3_tick_format.is_some() {
+                    graph-plot allow-uri-filters=(allow_filters) uri=(graph_data_uri) id=(graph_id) d3-tick-format=(graph.d3_tick_format.as_ref().unwrap()) { }
+                } @else {
+                    graph-plot allow-uri-filters=(allow_filters) uri=(graph_data_uri) id=(graph_id) { }
+                }
             }
         }
     )
@@ -241,8 +251,10 @@ fn dash_elements(config: State<Arc<Vec<Dashboard>>>, dash_idx: usize) -> maud::P
         None
     };
     html!(
-        h1 { (dash.title) }
-        span-selector class="row-flex" {}
+        div class="dashboard-header" {
+            h1 class="dashboard-title" { (dash.title) }
+            span-selector {}
+        }
         @if graph_components.is_some() { (graph_components.unwrap()) }
         @if log_components.is_some() { (log_components.unwrap()) }
     )
@@ -332,16 +344,19 @@ fn render_index(config: State<Arc<Vec<Dashboard>>>, dash_idx: Option<usize>) -> 
         .enumerate()
         .collect::<Vec<(usize, String)>>();
     html! {
-        div class="row-flex" {
-            div class="flex-item-shrink" {
-                // Header menu
-                ul {
+        div class="app-layout" {
+            nav class="sidebar" {
+                div class="sidebar-header" { "Heracles" }
+                ul class="sidebar-nav" {
                     @for title in &titles {
-                        li hx-push-url=(format!("/dash/{}", title.0)) hx-get=(format!("/ui/dash/{}", title.0)) hx-target="#dashboard" { (title.1) }
+                        li class=(if dash_idx == Some(title.0) { "sidebar-nav-item active" } else { "sidebar-nav-item" })
+                           hx-push-url=(format!("/dash/{}", title.0))
+                           hx-get=(format!("/ui/dash/{}", title.0))
+                           hx-target="#dashboard" { (title.1) }
                     }
                 }
             }
-            div class="flex-item-grow" id="dashboard" {
+            div class="main-content" id="dashboard" {
                 @if let Some(dash_idx) = dash_idx {
                     (dash_elements(config, dash_idx))
                 }

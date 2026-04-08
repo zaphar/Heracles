@@ -129,9 +129,7 @@ class ElementConfig {
         this.height = 600;
         this.pollSeconds = 30;
         this.menuContainer = this.#container.appendChild(document.createElement('div'));
-        // TODO(jwall): These should probably be done as template clones so we have less places
-        // to look for class attributes.
-        this.menuContainer.setAttribute("class", "row-flex max-120-char-width");
+        this.menuContainer.setAttribute("class", "filter-menu");
         this.targetNode = this.#container.appendChild(document.createElement("div"));
     }
 
@@ -510,16 +508,22 @@ export class GraphPlot extends HTMLElement {
         var layout = {
             displayModeBar: false,
             responsive: true,
-            plot_bgcolor: getCssVariableValue('--plot-background-color').trim(),
-            paper_bgcolor: getCssVariableValue('--paper-background-color').trim(),
+            plot_bgcolor: getCssVariableValue('--plot-bg').trim(),
+            paper_bgcolor: getCssVariableValue('--bg-secondary').trim(),
             font: {
-                color: getCssVariableValue('--text-color').trim()
+                family: getCssVariableValue('--font-sans').trim(),
+                color: getCssVariableValue('--text-secondary').trim(),
+                size: 11
             },
             xaxis: {
-                gridcolor: getCssVariableValue("--grid-line-color")
+                gridcolor: getCssVariableValue("--plot-grid").trim(),
+                linecolor: getCssVariableValue("--plot-axis").trim(),
+                zerolinecolor: getCssVariableValue("--plot-grid").trim()
             },
+            margin: { t: 8, r: 16, b: 40, l: 48 },
             legend: {
-                orientation: 'v'
+                orientation: 'v',
+                font: { size: 10 }
             }
         };
         if (graph.legend_orientation) {
@@ -528,7 +532,7 @@ export class GraphPlot extends HTMLElement {
         var nextYaxis = yaxisNameGenerator();
         for (const yaxis of yaxes) {
             yaxis.tickformat = yaxis.tickformat || this.#config.d3TickFormat;
-            yaxis.gridColor = getCssVariableValue("--grid-line-color");
+            yaxis.gridColor = getCssVariableValue("--plot-grid").trim();
             layout[nextYaxis()] = yaxis;
         }
         var traces = /** @type {Array<PlotTrace>} */ ([]);
@@ -1065,4 +1069,17 @@ export class LogViewer extends HTMLElement {
 }
 
 LogViewer.registerElement();
+
+// Sidebar active state management for HTMX navigation
+document.addEventListener('htmx:afterSwap', function(evt) {
+    const navItems = document.querySelectorAll('.sidebar-nav-item');
+    navItems.forEach(function(item) {
+        const pushUrl = item.getAttribute('hx-push-url');
+        if (pushUrl && window.location.pathname === pushUrl) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+});
 
