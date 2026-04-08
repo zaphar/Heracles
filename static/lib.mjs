@@ -109,6 +109,280 @@ function getCssVariableValue(variableName) {
     return getComputedStyle(document.documentElement).getPropertyValue(variableName);
 }
 
+export class MultiSelectFilter extends HTMLElement {
+    static elementName = "multi-select-filter";
+    /** @type {string[]} */
+    #options = [];
+    /** @type {string[]} */
+    #value = [];
+    /** @type {boolean} */
+    #open = false;
+    /** @type {HTMLButtonElement} */
+    #trigger;
+    /** @type {HTMLDivElement} */
+    #dropdown;
+    /** @type {string} */
+    #panelId;
+    /** @type {function} */
+    #outsideClickHandler;
+
+    constructor() {
+        super();
+        this.#panelId = 'msf-panel-' + Math.random().toString(36).slice(2, 9);
+        this.#outsideClickHandler = (e) => {
+            if (this.#open && !this.contains(e.target)) {
+                this.#close();
+            }
+        };
+    }
+
+    static get observedAttributes() {
+        return ['label'];
+    }
+
+    get options() { return this.#options; }
+    set options(val) {
+        this.#options = val;
+        if (this.#open) this.#close();
+        this.#buildDropdown();
+        this.#updateTriggerText();
+    }
+
+    get value() { return this.#value; }
+    set value(val) {
+        this.#value = val;
+        this.#syncCheckboxes();
+        this.#updateTriggerText();
+    }
+
+    connectedCallback() {
+        this.style.position = 'relative';
+        this.style.display = 'inline-block';
+        this.#buildTrigger();
+        this.#buildDropdown();
+        this.#updateTriggerText();
+
+        document.addEventListener('click', this.#outsideClickHandler);
+        document.addEventListener('multi-select-open', (e) => {
+            if (e.detail !== this && this.#open) this.#close();
+        });
+    }
+
+    disconnectedCallback() {
+        document.removeEventListener('click', this.#outsideClickHandler);
+    }
+
+    attributeChangedCallback(_name, _oldVal, _newVal) {
+        if (this.#trigger) this.#updateTriggerText();
+    }
+
+    #buildTrigger() {
+        this.#trigger = document.createElement('button');
+        this.#trigger.className = 'msf-trigger';
+        this.#trigger.setAttribute('role', 'combobox');
+        this.#trigger.setAttribute('aria-haspopup', 'listbox');
+        this.#trigger.setAttribute('aria-expanded', 'false');
+        this.#trigger.setAttribute('aria-controls', this.#panelId);
+
+        const label = document.createElement('span');
+        label.className = 'msf-label';
+        const count = document.createElement('span');
+        count.className = 'msf-count';
+        const chevron = document.createElement('span');
+        chevron.className = 'msf-chevron';
+        chevron.textContent = '\u25BE';
+
+        this.#trigger.append(label, count, chevron);
+        this.appendChild(this.#trigger);
+
+        this.#trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.#open ? this.#close() : this.#openDropdown();
+        });
+        this.#trigger.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!this.#open) this.#openDropdown();
+                const first = this.#dropdown.querySelector('[role="option"]');
+                if (first) first.focus();
+            }
+        });
+    }
+
+    #buildDropdown() {
+        if (this.#dropdown) this.#dropdown.remove();
+        this.#dropdown = document.createElement('div');
+        this.#dropdown.className = 'msf-dropdown';
+        this.#dropdown.id = this.#panelId;
+        this.#dropdown.setAttribute('role', 'listbox');
+        this.#dropdown.setAttribute('aria-multiselectable', 'true');
+        this.#dropdown.setAttribute('aria-label', 'Values for ' + (this.getAttribute('label') || ''));
+        this.#dropdown.hidden = true;
+
+        // Select all row
+        const selectAll = this.#createOptionRow('Select all', null, true);
+        selectAll.classList.add('msf-select-all');
+        this.#dropdown.appendChild(selectAll);
+
+        const sep = document.createElement('div');
+        sep.className = 'msf-separator';
+        this.#dropdown.appendChild(sep);
+
+        for (const opt of this.#options) {
+            this.#dropdown.appendChild(this.#createOptionRow(opt, opt, false));
+        }
+
+        this.appendChild(this.#dropdown);
+        this.#syncCheckboxes();
+    }
+
+    #createOptionRow(text, dataValue, isSelectAll) {
+        const row = document.createElement('div');
+        row.className = 'msf-option';
+        row.setAttribute('role', 'option');
+        row.setAttribute('tabindex', '-1');
+        if (dataValue !== null) row.dataset.value = dataValue;
+
+        const checkbox = document.createElement('span');
+        checkbox.className = 'msf-checkbox';
+        const label = document.createElement('span');
+        label.className = 'msf-option-text';
+        label.textContent = text;
+
+        row.append(checkbox, label);
+
+        row.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isSelectAll) {
+                this.#toggleAll();
+            } else {
+                this.#toggleValue(dataValue);
+            }
+        });
+
+        row.addEventListener('keydown', (e) => {
+            const options = [...this.#dropdown.querySelectorAll('[role="option"]')];
+            const idx = options.indexOf(row);
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (idx < options.length - 1) options[idx + 1].focus();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (idx > 0) options[idx - 1].focus();
+                    else this.#trigger.focus();
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    options[0].focus();
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    options[options.length - 1].focus();
+                    break;
+                case ' ':
+                case 'Enter':
+                    e.preventDefault();
+                    row.click();
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    this.#close();
+                    this.#trigger.focus();
+                    break;
+            }
+        });
+
+        return row;
+    }
+
+    #toggleValue(val) {
+        const idx = this.#value.indexOf(val);
+        if (idx >= 0) {
+            this.#value = this.#value.filter(v => v !== val);
+        } else {
+            this.#value = [...this.#value, val];
+        }
+        this.#syncCheckboxes();
+        this.#updateTriggerText();
+        this.#fireChange();
+    }
+
+    #toggleAll() {
+        if (this.#value.length === this.#options.length) {
+            this.#value = [];
+        } else {
+            this.#value = [...this.#options];
+        }
+        this.#syncCheckboxes();
+        this.#updateTriggerText();
+        this.#fireChange();
+    }
+
+    #syncCheckboxes() {
+        if (!this.#dropdown) return;
+        const allRow = this.#dropdown.querySelector('.msf-select-all');
+        if (allRow) {
+            const cb = allRow.querySelector('.msf-checkbox');
+            cb.classList.toggle('checked', this.#value.length === this.#options.length && this.#options.length > 0);
+            cb.classList.toggle('indeterminate', this.#value.length > 0 && this.#value.length < this.#options.length);
+            allRow.setAttribute('aria-selected', this.#value.length === this.#options.length ? 'true' : 'false');
+        }
+        for (const row of this.#dropdown.querySelectorAll('.msf-option:not(.msf-select-all)')) {
+            const val = row.dataset.value;
+            const selected = this.#value.includes(val);
+            row.querySelector('.msf-checkbox').classList.toggle('checked', selected);
+            row.setAttribute('aria-selected', selected ? 'true' : 'false');
+        }
+    }
+
+    #updateTriggerText() {
+        if (!this.#trigger) return;
+        const label = this.getAttribute('label') || '';
+        this.#trigger.querySelector('.msf-label').textContent = label;
+        const total = this.#options.length;
+        const selected = this.#value.length;
+        const countEl = this.#trigger.querySelector('.msf-count');
+        countEl.textContent = selected === total ? '(all)' : `(${selected}/${total})`;
+        countEl.classList.toggle('msf-partial', selected !== total);
+        this.#trigger.setAttribute('aria-label',
+            `Filter by ${label}: ${selected === total ? 'all' : selected + ' of ' + total} selected`);
+    }
+
+    #openDropdown() {
+        document.dispatchEvent(new CustomEvent('multi-select-open', { detail: this }));
+        this.#open = true;
+        this.#dropdown.hidden = false;
+        this.#trigger.setAttribute('aria-expanded', 'true');
+        this.#trigger.classList.add('msf-open');
+        const first = this.#dropdown.querySelector('[role="option"]');
+        if (first) first.focus();
+    }
+
+    #close() {
+        this.#open = false;
+        this.#dropdown.hidden = true;
+        this.#trigger.setAttribute('aria-expanded', 'false');
+        this.#trigger.classList.remove('msf-open');
+    }
+
+    #fireChange() {
+        this.dispatchEvent(new CustomEvent('change', {
+            detail: { key: this.getAttribute('label') || '', values: [...this.#value] },
+            bubbles: true,
+        }));
+    }
+
+    static registerElement() {
+        if (!customElements.get(MultiSelectFilter.elementName)) {
+            customElements.define(MultiSelectFilter.elementName, MultiSelectFilter);
+        }
+    }
+}
+
+MultiSelectFilter.registerElement();
+
 class ElementConfig {
     uri;
     /** @type {?boolean} */
@@ -244,59 +518,18 @@ class ElementConfig {
       * @returns {HTMLDivElement}
       */
     buildSelectElement(key, me) {
-        const id = key + "-select" + Math.random();
-        const element = document.createElement("div");
-        const select = document.createElement("select");
-        select.setAttribute("name", id);
-        // TODO(jwall): This is how you set boolean attributes. Use the attribute name... :-(
-        select.setAttribute("multiple", "multiple");
-        select.setAttribute("size", "3");
-        const optElement = document.createElement("option");
-        const optValue = "Select All: " + key;
-        optElement.innerText = optValue;
-        select.appendChild(optElement);
-        for (const opt of this.filterLabels[key]) {
-            const optElement = document.createElement("option");
-            optElement.setAttribute("value", opt);
-            optElement.setAttribute("selected", "selected");
-            optElement.selected = true;
-            optElement.innerText = opt;
-            select.appendChild(optElement);
-        }
+        const filter = document.createElement('multi-select-filter');
+        filter.setAttribute('label', key);
+        filter.options = this.filterLabels[key];
+        filter.value = [...this.filterLabels[key]]; // all selected by default
 
         const self = this;
-        select.onchange = function(evt) {
-            evt.stopPropagation();
-            const filteredValues = [];
-            const selectElement = /** @type {HTMLSelectElement} */(evt.target);
-            let selectAll = /** @type {?HTMLOptionElement}*/(null);
-            for (const optEl of selectElement.selectedOptions) {
-                if (optEl.value && optEl.value.startsWith("Select All: ")) {
-                    selectAll = optEl;
-                    break;
-                }
-            }
-            for (const o of selectElement.options) {
-                if (selectAll) {
-                    if (o != selectAll) {
-                        o.setAttribute("selected", "selected");
-                        o.selected = true;
-                        filteredValues.push(o.value);
-                    } else {
-                        o.removeAttribute("selected");
-                    }
-                } else if (!o.selected) {
-                    o.removeAttribute("selected");
-                } else {
-                    o.setAttribute("selected", "selected");
-                    filteredValues.push(o.value);
-                }
-            }
-            self.filteredLabelSets[key] = filteredValues;
+        filter.addEventListener('change', (e) => {
+            self.filteredLabelSets[key] = e.detail.values;
             me.reset(true);
-        };
-        element.appendChild(select);
-        return element;
+        });
+
+        return filter;
     }
 
     // FIXME(jwall): We pass the element down but that couples a little too tightly. We should do this differently.
